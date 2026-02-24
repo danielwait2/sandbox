@@ -1,4 +1,4 @@
-# Tayt — Product Interest Survey
+# Product Interest Survey — Food Spending & Cooking App
 
 **Goal:** Understand target audience pain points, behaviors, and willingness to pay for a product that turns food spending into a weekly cook-at-home plan and prefilled grocery cart.
 
@@ -185,14 +185,19 @@
 **Q23. What is your biggest frustration with food spending right now?**
 *(Open text — optional)*
 
+**Q24. How would you feel if this app never launched?**
+- Very disappointed
+- Somewhat disappointed
+- Not disappointed
+
 Thanks for your time. One last thing:
 
-**Q24. Want early access to test the product?**
+**Q25. Want early access to test the product?**
 - Yes
 - No
 
-**Q25. If yes, enter your email.**
-*(Short answer — shown only if Q24 = Yes)*
+**Q26. If yes, enter your email.**
+*(Short answer — shown only if Q25 = Yes)*
 
 ---
 
@@ -206,4 +211,5 @@ Thanks for your time. One last thing:
 - **Behavioral pricing:** Q21 removes the savings anchor deliberately. Expect lower numbers than a primed version — that is the point. These are more honest floors.
 - **Data-sharing risk:** Q17 is the single cleanest read on this. Watch for "would not connect under any circumstances" — that segment cannot use the core product.
 - **Barriers vs. disqualifiers:** Q16 "already have a system" is not a blocker; "I still prefer convenience" is a soft blocker; "would not connect financial data" (Q17) is a hard blocker.
+- **Ellis PMF signal:** Q24 = "very disappointed" ≥40% is the benchmark for strong concept signal. Track this alongside Q8.
 - **Qualitative gold:** Q10, Q18, Q22, Q23 — required and optional open-text fields. Read these before drawing any conclusions from quantitative responses.
