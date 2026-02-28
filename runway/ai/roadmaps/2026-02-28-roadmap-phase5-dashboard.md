@@ -9,7 +9,7 @@
 - [x] Task 2: GET /api/dashboard/summary
 - [x] Task 3: GET/PUT /api/categories
 - [x] Task 4: PeriodToggle component
-- [ ] Task 5: SummaryStats component
+- [x] Task 5: SummaryStats component
 - [ ] Task 6: CategoryCard component
 - [ ] Task 7: Dashboard page (replace stub)
 - [ ] Task 8: Category drill-down page
