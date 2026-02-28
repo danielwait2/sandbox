@@ -1,6 +1,6 @@
 # Phase 1 Roadmap: Project Setup & Auth
 
-**Status:** Not Started
+**Status:** In Progress
 **Timeline:** Days 1–2
 **Detailed Plan:** [phase-1-project-setup-and-auth.md](./phase-1-project-setup-and-auth.md)
 
@@ -26,7 +26,7 @@ Bootstrap the Next.js app with Tailwind, wire up Google OAuth via NextAuth.js, a
 ## Task Checklist
 
 ### Project Init
-- [ ] `create-next-app` with TypeScript, Tailwind, App Router
+- [x] `create-next-app` with TypeScript, Tailwind, App Router
 - [ ] Install `next-auth`, `better-sqlite3`, `@types/better-sqlite3`, `uuid`
 - [ ] Create `.env.example` and `.env.local` with all required vars
 
