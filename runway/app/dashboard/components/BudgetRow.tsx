@@ -24,7 +24,7 @@ export default function BudgetRow({
   onDefaultToggle,
 }: BudgetRowProps) {
   const [inputValue, setInputValue] = useState(budget > 0 ? String(budget) : '');
-  const isDefault = defaultAmount !== null && defaultAmount === budget;
+  const isDefault = defaultAmount !== null;
 
   const pct = budget > 0 ? Math.min(spent / budget, 1) : 0;
   const barColor =
