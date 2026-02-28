@@ -16,7 +16,7 @@ export const isReceiptEmail = (from: string): ReceiptDetectionResult => {
     return { isReceipt: true, retailer: "Costco" };
   }
 
-  if (normalizedFrom.includes("@samsclub.com")) {
+  if (normalizedFrom.includes("samsclub.com")) {
     return { isReceipt: true, retailer: "Sams Club" };
   }
 
