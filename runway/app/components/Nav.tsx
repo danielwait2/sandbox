@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/budget', label: 'Budget' },
   { href: '/review-queue', label: 'Review Queue' },
   { href: '/insights', label: 'Insights' },
   { href: '/history', label: 'History' },
