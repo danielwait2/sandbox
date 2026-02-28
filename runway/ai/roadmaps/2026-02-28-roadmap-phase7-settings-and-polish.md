@@ -6,7 +6,7 @@
 ## Tasks
 
 - [x] Task 1: DELETE /api/auth/disconnect
-- [ ] Task 2: GET/POST /api/rules
+- [x] Task 2: GET/POST /api/rules
 - [ ] Task 3: DELETE /api/rules/[id]
 - [ ] Task 4: GET /api/items/export (CSV)
 - [ ] Task 5: DELETE /api/account (data wipe)
