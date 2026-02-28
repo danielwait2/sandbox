@@ -36,7 +36,7 @@ Bootstrap the Next.js app with Tailwind, wire up Google OAuth via NextAuth.js, a
 - [x] Seed 9 default categories into `budgets` if empty
 
 ### Auth
-- [ ] `app/api/auth/[...nextauth]/route.ts` — GoogleProvider with `gmail.readonly` scope + `access_type=offline`
+- [x] `app/api/auth/[...nextauth]/route.ts` — GoogleProvider with `gmail.readonly` scope + `access_type=offline`
 - [ ] Store `accessToken` and `refreshToken` in JWT callback
 - [ ] `middleware.ts` — protect `/dashboard` and `/api/*` (except `/api/auth/*`)
 
