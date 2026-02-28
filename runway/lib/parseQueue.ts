@@ -81,7 +81,7 @@ export const processUnparsedReceipts = async (
         continue;
       }
 
-      persistParsedReceipt(row.id, parsed);
+      persistParsedReceipt(row.id, parsed, userId);
       processed += 1;
     } catch (err) {
       console.error("[parseQueue] Failed for receipt", row.id, err);

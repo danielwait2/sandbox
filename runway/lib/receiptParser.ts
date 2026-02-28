@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { model } from "@/lib/gemini";
+import { upsertPriceHistory } from "@/lib/priceHistory";
 
 export type ParsedItem = {
   raw_name: string;
@@ -85,7 +86,8 @@ export const parseReceipt = async (
 
 export const persistParsedReceipt = (
   receiptId: string,
-  parsed: ParsedReceipt
+  parsed: ParsedReceipt,
+  userId: string
 ): void => {
   const now = new Date().toISOString();
 
@@ -133,4 +135,14 @@ export const persistParsedReceipt = (
   });
 
   transaction();
+
+  upsertPriceHistory(
+    userId,
+    parsed.items.map((item) => ({
+      name: item.name,
+      unit_price: item.unit_price,
+      retailer: parsed.retailer.name,
+      date: parsed.transaction.date,
+    }))
+  );
 };
