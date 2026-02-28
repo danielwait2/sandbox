@@ -1,6 +1,6 @@
 # Phase 2 Roadmap: Gmail Ingestion & Receipt Detection
 
-**Status:** Not Started
+**Status:** In Progress
 **Timeline:** Days 3–4
 **Detailed Plan:** [phase-2-gmail-ingestion-and-receipt-detection.md](./phase-2-gmail-ingestion-and-receipt-detection.md)
 
@@ -26,7 +26,7 @@ Use the user's Gmail OAuth token to fetch emails, filter to Walmart and Costco r
 ## Task Checklist
 
 ### Gmail Client
-- [ ] Install `googleapis`
+- [x] Install `googleapis`
 - [ ] `lib/gmail.ts` — authenticated Gmail client factory with token refresh
 
 ### Receipt Detection
