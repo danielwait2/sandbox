@@ -68,6 +68,16 @@ CREATE TABLE IF NOT EXISTS price_history (
   date                 TEXT    NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS audit_log (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id     TEXT,
+  actor_user_id  TEXT,
+  event_type     TEXT NOT NULL,
+  target_user_id TEXT,
+  metadata       TEXT,
+  created_at     TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS accounts (
   id             TEXT PRIMARY KEY,
   owner_user_id  TEXT NOT NULL,
