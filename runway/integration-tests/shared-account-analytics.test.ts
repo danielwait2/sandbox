@@ -12,19 +12,25 @@ type DbModule = typeof import("@/lib/db");
 type AccountModule = typeof import("@/lib/account");
 type InsightsModule = typeof import("@/lib/insights");
 type HistoryModule = typeof import("@/lib/history");
+type MailboxModule = typeof import("@/lib/mailbox");
 
 let db: DbModule["db"];
 let resolveAccountContextForUser: AccountModule["resolveAccountContextForUser"];
 let getAllInsights: InsightsModule["getAllInsights"];
 let getHistorySummary: HistoryModule["getHistorySummary"];
 let getMonthlySpending: HistoryModule["getMonthlySpending"];
+let getMonthlyCategorySpending: HistoryModule["getMonthlyCategorySpending"];
 let getReceiptsForMonth: HistoryModule["getReceiptsForMonth"];
+let upsertMailboxConnection: MailboxModule["upsertMailboxConnection"];
+let getConnectedMailboxConnection: MailboxModule["getConnectedMailboxConnection"];
+let disconnectMailboxConnection: MailboxModule["disconnectMailboxConnection"];
 
 test.before(async () => {
   ({ db } = await import("@/lib/db"));
   ({ resolveAccountContextForUser } = await import("@/lib/account"));
   ({ getAllInsights } = await import("@/lib/insights"));
-  ({ getHistorySummary, getMonthlySpending, getReceiptsForMonth } = await import("@/lib/history"));
+  ({ getHistorySummary, getMonthlySpending, getMonthlyCategorySpending, getReceiptsForMonth } = await import("@/lib/history"));
+  ({ upsertMailboxConnection, getConnectedMailboxConnection, disconnectMailboxConnection } = await import("@/lib/mailbox"));
 });
 
 const resetDb = (): void => {
@@ -188,6 +194,41 @@ test("history drill-down preserves contributor attribution", () => {
   assert.equal(ownerReceipt?.contributorRole, "owner");
   assert.equal(memberReceipt?.contributor_user_id, "member@example.com");
   assert.equal(memberReceipt?.contributorRole, "member");
+});
+
+test("account totals match summed line items for selected range", () => {
+  resetDb();
+  seedSharedAccount();
+
+  const ownerContext = resolveAccountContextForUser("owner@example.com");
+  assert.ok(ownerContext);
+
+  const monthly = getMonthlySpending(ownerContext, "all", "2026-01", "2026-01");
+  const categoryRows = getMonthlyCategorySpending(ownerContext, "all", "2026-01", "2026-01");
+  const sumCategories = categoryRows.reduce((sum, row) => sum + row.total, 0);
+
+  assert.equal(monthly.length, 1);
+  assert.equal(monthly[0].total, 150);
+  assert.equal(sumCategories, monthly[0].total);
+});
+
+test("mailbox connections remain isolated per user", () => {
+  resetDb();
+
+  upsertMailboxConnection("owner@example.com", "google", "owner-access", "owner-refresh");
+  upsertMailboxConnection("member@example.com", "google", "member-access", "member-refresh");
+
+  const ownerConn = getConnectedMailboxConnection("owner@example.com", "google");
+  const memberConn = getConnectedMailboxConnection("member@example.com", "google");
+  assert.ok(ownerConn);
+  assert.ok(memberConn);
+
+  disconnectMailboxConnection("member@example.com", "google");
+
+  const ownerStillConnected = getConnectedMailboxConnection("owner@example.com", "google");
+  const memberDisconnected = getConnectedMailboxConnection("member@example.com", "google");
+  assert.ok(ownerStillConnected);
+  assert.equal(memberDisconnected, null);
 });
 
 test("pending member activates on first account resolution", () => {

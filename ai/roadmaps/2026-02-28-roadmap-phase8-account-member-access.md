@@ -1,6 +1,6 @@
 # Phase 8 Roadmap: Account Member Access
 
-**Status:** In Progress  
+**Status:** Complete  
 **Timeline:** Days 16-20  
 **Detailed Plan:** [phase-8-account-member-access.md](./phase-8-account-member-access.md)
 
@@ -63,7 +63,7 @@ Add shared-account support so one owner can add one member, both can connect and
 - [x] Add optional contributor filter (`all`, `owner`, `member`) to analytics/reporting endpoints where filtering is supported
 - [x] Ensure owner and member see identical shared totals on `dashboard`, `insights`, and `history` for same account/date/filter selection
 - [x] Include contributor attribution in receipt detail payloads and CSV export
-- [ ] Verify account-wide totals match sum of account line items for selected range
+- [x] Verify account-wide totals match sum of account line items for selected range
 
 ### Duplicate Detection and Auditing
 - [x] Implement account-level duplicate detection using `(account_id, provider, raw_email_id)`
@@ -72,9 +72,9 @@ Add shared-account support so one owner can add one member, both can connect and
 - [x] Add audit events for add/remove member, mailbox connect/disconnect, scan start/end
 
 ### QA and Hardening
-- [ ] Add migration tests for legacy single-user data
+- [x] Add migration tests for legacy single-user data
 - [x] Add integration tests for permissions and member removal behavior
-- [ ] Add ingestion tests for owner/member mailbox isolation
+- [x] Add ingestion tests for owner/member mailbox isolation
 - [x] Add reporting tests for combined totals and contributor filters across dashboard, insights, and history APIs
 - [x] Add parity tests to verify owner/member shared-account analytics match for equivalent filters
 - [x] Run `next build` and resolve all TypeScript/build failures
@@ -106,7 +106,7 @@ Add shared-account support so one owner can add one member, both can connect and
 - [x] Updated dashboard, insights, and history APIs/UI filters for shared totals
 - [x] Settings UI updates for membership management
 - [x] Duplicate detection + audit logging
-- [ ] Integration and migration test coverage for this phase
+- [x] Integration and migration test coverage for this phase
 
 ---
 
@@ -119,10 +119,10 @@ Add shared-account support so one owner can add one member, both can connect and
 ## Completion Checklist
 
 Before moving to `ai/roadmaps/complete`:
-- [ ] All tasks completed
-- [ ] Success criteria met
-- [ ] Deliverables created
-- [ ] Tests passing
+- [x] All tasks completed
+- [x] Success criteria met
+- [x] Deliverables created
+- [x] Tests passing
 - [ ] Documentation updated
 - [ ] Changelog updated
 
