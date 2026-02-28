@@ -43,7 +43,7 @@ Bootstrap the Next.js app with Tailwind, wire up Google OAuth via NextAuth.js, a
 ### Pages
 - [x] `app/signin/page.tsx` — centered sign-in card, "Sign in with Google" button
 - [x] `app/dashboard/page.tsx` — placeholder ("Dashboard coming in Phase 5")
-- [ ] `app/page.tsx` — redirect to `/signin` or `/dashboard` based on session
+- [x] `app/page.tsx` — redirect to `/signin` or `/dashboard` based on session
 
 ---
 
