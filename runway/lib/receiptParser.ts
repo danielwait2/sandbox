@@ -60,10 +60,13 @@ const stripFences = (text: string): string => {
 };
 
 const applyCurrentYearIfMissing = (date: string): string => {
-  if (date.startsWith("MISSING-")) {
-    return date.replace("MISSING", new Date().getFullYear().toString());
-  }
-  return date;
+  if (!date.startsWith("MISSING-")) return date;
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1; // 1-based
+  const receiptMonth = parseInt(date.slice(8, 10), 10); // "MISSING-MM-DD"
+  const year = receiptMonth > currentMonth ? currentYear - 1 : currentYear;
+  return date.replace("MISSING", year.toString());
 };
 
 const isValidParsed = (parsed: unknown): parsed is ParsedReceipt => {
