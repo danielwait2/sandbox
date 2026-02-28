@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import PeriodToggle from './components/PeriodToggle';
 import SummaryStats from './components/SummaryStats';
 import CategoryCard from './components/CategoryCard';
+import SpendingAlertBanner from './components/SpendingAlertBanner';
 
 type CategoryData = {
   name: string;
@@ -18,7 +19,6 @@ type SummaryData = {
   totalSpend: number;
   receiptCount: number;
   topCategory: string;
-  mostFrequentItem: string;
   categories: CategoryData[];
 };
 
@@ -33,7 +33,7 @@ function ScanButton({ onComplete }: { onComplete: () => void }) {
       const res = await fetch('/api/receipts/scan', { method: 'POST' });
       const json = await res.json() as { new?: number; parsed?: number; error?: string };
       if (!res.ok) {
-        setResult(json.error ?? 'Scan failed');
+        setResult(json.error ?? 'Pull failed');
       } else {
         const msg = `Found ${json.new ?? 0} new receipts, parsed ${json.parsed ?? 0}`;
         setResult(msg);
@@ -42,7 +42,7 @@ function ScanButton({ onComplete }: { onComplete: () => void }) {
         }
       }
     } catch {
-      setResult('Scan failed — check console');
+      setResult('Pull failed — check console');
     }
     setScanning(false);
   };
@@ -54,7 +54,7 @@ function ScanButton({ onComplete }: { onComplete: () => void }) {
         disabled={scanning}
         className="inline-block bg-zinc-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50"
       >
-        {scanning ? 'Scanning...' : 'Scan Receipts'}
+        {scanning ? 'Pulling...' : 'Pull Receipts from Email'}
       </button>
       {result && <p className="text-sm text-zinc-500">{result}</p>}
     </div>
@@ -92,7 +92,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     void fetchSummary(period);
-    // fetch review count
     fetch('/api/review-queue')
       .then((r) => r.json())
       .then((j: { count: number }) => setReviewCount(j.count ?? 0))
@@ -150,17 +149,19 @@ export default function DashboardPage() {
           {data.receiptCount === 0 ? (
             <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center">
               <p className="text-zinc-600 text-lg mb-4">
-                Connect Gmail and scan your receipts to get started
+                Connect Gmail and pull your receipts to get started
               </p>
               <ScanButton onComplete={() => fetchSummary(period)} />
             </div>
           ) : (
-            <SummaryStats
-              totalSpend={data.totalSpend}
-              receiptCount={data.receiptCount}
-              topCategory={data.topCategory}
-              mostFrequentItem={data.mostFrequentItem}
-            />
+            <>
+              <SpendingAlertBanner categories={data.categories} />
+              <SummaryStats
+                totalSpend={data.totalSpend}
+                receiptCount={data.receiptCount}
+                topCategory={data.topCategory}
+              />
+            </>
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -171,7 +172,14 @@ export default function DashboardPage() {
                 spend={cat.spend}
                 budget={cat.budget}
                 itemCount={cat.itemCount}
-                onClick={() => router.push('/dashboard/category/' + encodeURIComponent(cat.name))}
+                onClick={() =>
+                  router.push(
+                    '/dashboard/category/' +
+                      encodeURIComponent(cat.name) +
+                      '?period=' +
+                      encodeURIComponent(period)
+                  )
+                }
                 onBudgetSave={(amount) => handleBudgetSave(cat.name, amount)}
               />
             ))}
