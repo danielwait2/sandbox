@@ -30,6 +30,7 @@ export async function GET() {
        LEFT JOIN line_items li ON li.receipt_id = r.id
        WHERE r.user_id = ?
        GROUP BY r.id
+       HAVING COUNT(li.id) > 0
        ORDER BY r.transaction_date DESC`
     )
     .all(session.user.email) as ReceiptSummary[];
