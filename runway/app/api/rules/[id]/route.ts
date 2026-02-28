@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clearRulesCache } from "@/lib/rulesEngine";
+import { resolveAccountContextForUser } from "@/lib/account";
 
 export async function DELETE(
   _req: NextRequest,
@@ -13,13 +14,19 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = session.user.email;
+  const context = resolveAccountContextForUser(session.user.email);
+  if (!context) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (context.viewerRole !== "owner") {
+    return NextResponse.json({ error: "Only owner can delete rules" }, { status: 403 });
+  }
   const { id } = await params;
 
   type RuleRow = { id: number };
   const rule = db
     .prepare("SELECT id FROM rules WHERE id = ? AND user_id = ?")
-    .get(id, userId) as RuleRow | undefined;
+    .get(id, context.ownerUserId) as RuleRow | undefined;
 
   if (!rule) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

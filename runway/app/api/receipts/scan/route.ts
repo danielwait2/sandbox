@@ -44,52 +44,62 @@ export async function POST() {
     );
   }
 
-  writeAuditEvent({
-    accountId: context.accountId,
-    actorUserId: context.viewerUserId,
-    eventType: "scan_started",
-    metadata: JSON.stringify({ provider: "google" }),
-  });
+  try {
+    writeAuditEvent({
+      accountId: context.accountId,
+      actorUserId: context.viewerUserId,
+      eventType: "scan_started",
+      metadata: JSON.stringify({ provider: "google" }),
+    });
 
-  console.log(`[scan] user=${session.user.email} DEV_TEST_EMAIL=${process.env.DEV_TEST_EMAIL ?? 'not set'}`);
+    console.log(`[scan] user=${session.user.email} DEV_TEST_EMAIL=${process.env.DEV_TEST_EMAIL ?? 'not set'}`);
 
-  const scanResult = await scanGmail(
-    context,
-    mailbox.access_token,
-    mailbox.refresh_token,
-    mailbox.id
-  );
-  console.log(`[scan] gmail result: scanned=${scanResult.scanned} new=${scanResult.new} skipped=${scanResult.skipped}`);
+    const scanResult = await scanGmail(
+      context,
+      mailbox.access_token,
+      mailbox.refresh_token,
+      mailbox.id
+    );
+    console.log(`[scan] gmail result: scanned=${scanResult.scanned} new=${scanResult.new} skipped=${scanResult.skipped}`);
 
-  const parseResult = await processUnparsedReceipts(
-    context,
-    mailbox.access_token,
-    mailbox.refresh_token
-  );
-  console.log(`[scan] parse result: processed=${parseResult.processed} failed=${parseResult.failed}`);
+    const parseResult = await processUnparsedReceipts(
+      context,
+      mailbox.access_token,
+      mailbox.refresh_token
+    );
+    console.log(`[scan] parse result: processed=${parseResult.processed} failed=${parseResult.failed}`);
 
-  const categorizeResult = await categorizeItems(context);
-  console.log(`[scan] categorize result: categorized=${categorizeResult.categorized} reviewQueue=${categorizeResult.reviewQueue}`);
+    const categorizeResult = await categorizeItems(context);
+    console.log(`[scan] categorize result: categorized=${categorizeResult.categorized} reviewQueue=${categorizeResult.reviewQueue}`);
 
-  writeAuditEvent({
-    accountId: context.accountId,
-    actorUserId: context.viewerUserId,
-    eventType: "scan_completed",
-    metadata: JSON.stringify({
+    writeAuditEvent({
+      accountId: context.accountId,
+      actorUserId: context.viewerUserId,
+      eventType: "scan_completed",
+      metadata: JSON.stringify({
+        scanned: scanResult.scanned,
+        new: scanResult.new,
+        parsed: parseResult.processed,
+        parseFailed: parseResult.failed,
+      }),
+    });
+
+    return NextResponse.json({
       scanned: scanResult.scanned,
       new: scanResult.new,
+      skipped: scanResult.skipped,
       parsed: parseResult.processed,
       parseFailed: parseResult.failed,
-    }),
-  });
-
-  return NextResponse.json({
-    scanned: scanResult.scanned,
-    new: scanResult.new,
-    skipped: scanResult.skipped,
-    parsed: parseResult.processed,
-    parseFailed: parseResult.failed,
-    categorized: categorizeResult.categorized,
-    reviewQueue: categorizeResult.reviewQueue,
-  });
+      categorized: categorizeResult.categorized,
+      reviewQueue: categorizeResult.reviewQueue,
+    });
+  } catch (error) {
+    writeAuditEvent({
+      accountId: context.accountId,
+      actorUserId: context.viewerUserId,
+      eventType: "scan_failed",
+      metadata: JSON.stringify({ message: error instanceof Error ? error.message : "unknown" }),
+    });
+    return NextResponse.json({ error: "Scan failed" }, { status: 500 });
+  }
 }

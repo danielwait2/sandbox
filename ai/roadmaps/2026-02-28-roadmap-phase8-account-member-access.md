@@ -34,7 +34,7 @@ Add shared-account support so one owner can add one member, both can connect and
 
 ### Auth Context and Authorization
 - [x] Add account context resolver (`currentUserId`, `currentAccountId`, `currentRole`)
-- [ ] Enforce account membership checks on all authenticated APIs
+- [x] Enforce account membership checks on all authenticated APIs
 - [x] Enforce owner-only access for member management APIs
 - [x] Add membership state handling (`pending`, `active`, `removed`)
 
@@ -50,7 +50,7 @@ Add shared-account support so one owner can add one member, both can connect and
 - [x] Update `/api/receipts/scan` to run only against caller mailbox credentials
 - [x] Ensure parsed receipts are written to shared `account_id` with immutable contributor attribution
 - [x] Keep disconnect isolated to caller mailbox only
-- [ ] Add mailbox re-auth state handling and user-facing messaging
+- [x] Add mailbox re-auth state handling and user-facing messaging
 
 ### Aggregation, Reporting, and Exports
 - [x] Convert dashboard, review queue, items, and receipt detail queries to `account_id` scope
@@ -67,8 +67,8 @@ Add shared-account support so one owner can add one member, both can connect and
 
 ### Duplicate Detection and Auditing
 - [x] Implement account-level duplicate detection using `(account_id, provider, raw_email_id)`
-- [ ] Add secondary duplicate heuristic hash (`retailer + transaction_date + total + order suffix`)
-- [ ] Log duplicate-suppression and key account events in `audit_log`
+- [x] Add secondary duplicate heuristic hash (`retailer + transaction_date + total + order suffix`)
+- [x] Log duplicate-suppression and key account events in `audit_log`
 - [x] Add audit events for add/remove member, mailbox connect/disconnect, scan start/end
 
 ### QA and Hardening
@@ -91,7 +91,7 @@ Add shared-account support so one owner can add one member, both can connect and
 - [x] Contributor filters return deterministic totals across dashboard, insights, and history
 - [x] Removing member immediately revokes access while preserving historical receipts
 - [x] Duplicate receipts across users are suppressed at account level
-- [ ] Account-level audit logs are written for all critical actions
+- [x] Account-level audit logs are written for all critical actions
 - [x] Legacy single-user accounts migrate without data loss
 - [x] `next build` passes with zero errors
 
@@ -105,7 +105,7 @@ Add shared-account support so one owner can add one member, both can connect and
 - [x] Updated scan/parse/categorization pipelines for account + contributor model
 - [x] Updated dashboard, insights, and history APIs/UI filters for shared totals
 - [x] Settings UI updates for membership management
-- [ ] Duplicate detection + audit logging
+- [x] Duplicate detection + audit logging
 - [ ] Integration and migration test coverage for this phase
 
 ---
