@@ -77,6 +77,12 @@ export const processUnparsedReceipts = async (
       const parsed = await parseReceipt(emailBody);
 
       if (!parsed) {
+        // Mark as processed so it isn't re-queued on future scans.
+        // No items will be inserted, so it stays invisible in the UI (filtered by HAVING COUNT > 0).
+        db.prepare("UPDATE receipts SET parsed_at = ? WHERE id = ?").run(
+          new Date().toISOString(),
+          row.id
+        );
         failed += 1;
         continue;
       }
