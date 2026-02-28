@@ -27,7 +27,7 @@ Bootstrap the Next.js app with Tailwind, wire up Google OAuth via NextAuth.js, a
 
 ### Project Init
 - [x] `create-next-app` with TypeScript, Tailwind, App Router
-- [ ] Install `next-auth`, `better-sqlite3`, `@types/better-sqlite3`, `uuid`
+- [x] Install `next-auth`, `better-sqlite3`, `@types/better-sqlite3`, `uuid`
 - [ ] Create `.env.example` and `.env.local` with all required vars
 
 ### Database
