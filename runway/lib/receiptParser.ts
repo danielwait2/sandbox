@@ -1,0 +1,135 @@
+import { db } from "@/lib/db";
+import { model } from "@/lib/gemini";
+
+export type ParsedItem = {
+  raw_name: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  confidence: number;
+};
+
+export type ParsedReceipt = {
+  retailer: { name: string };
+  transaction: {
+    date: string;
+    subtotal: number | null;
+    tax: number | null;
+    total: number;
+    order_number: string | null;
+  };
+  items: ParsedItem[];
+};
+
+const PROMPT_TEMPLATE = `You are a receipt parser. Extract all line items from the following retail receipt email.
+Return ONLY a valid JSON object — no markdown, no explanation.
+
+Required format:
+{
+  "retailer": { "name": "Walmart" | "Costco" },
+  "transaction": { "date": "YYYY-MM-DD", "subtotal": number, "tax": number, "total": number, "order_number": "string | null" },
+  "items": [
+    { "raw_name": "...", "name": "...", "quantity": number, "unit_price": number, "total_price": number, "confidence": number }
+  ]
+}
+
+Rules:
+- "raw_name" is the exact text from the receipt; "name" is a human-readable normalized version
+- "confidence" is 0.0–1.0 representing how certain you are about this line item's data
+- Omit items that are clearly not products (e.g., subtotal lines, tax lines, loyalty rewards)
+- If a field is missing from the email, use null
+
+Receipt email:
+`;
+
+const stripFences = (text: string): string => {
+  return text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+};
+
+const isValidParsed = (parsed: unknown): parsed is ParsedReceipt => {
+  if (!parsed || typeof parsed !== "object") return false;
+  const p = parsed as Record<string, unknown>;
+  if (!p.transaction || typeof p.transaction !== "object") return false;
+  const t = p.transaction as Record<string, unknown>;
+  if (typeof t.date !== "string" || !t.date) return false;
+  if (typeof t.total !== "number") return false;
+  if (!Array.isArray(p.items) || p.items.length === 0) return false;
+  return true;
+};
+
+export const parseReceipt = async (
+  emailBody: string
+): Promise<ParsedReceipt | null> => {
+  try {
+    const prompt = PROMPT_TEMPLATE + emailBody;
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text();
+    const cleaned = stripFences(raw);
+    const parsed: unknown = JSON.parse(cleaned);
+    if (!isValidParsed(parsed)) {
+      console.error("[receiptParser] Invalid structure:", cleaned.slice(0, 200));
+      return null;
+    }
+    return parsed;
+  } catch (err) {
+    console.error("[receiptParser] Parse failed:", err);
+    return null;
+  }
+};
+
+export const persistParsedReceipt = (
+  receiptId: string,
+  parsed: ParsedReceipt
+): void => {
+  const now = new Date().toISOString();
+
+  const updateReceipt = db.prepare(`
+    UPDATE receipts
+    SET transaction_date = ?,
+        order_number = ?,
+        subtotal = ?,
+        tax = ?,
+        total = ?,
+        parsed_at = ?
+    WHERE id = ?
+  `);
+
+  const insertItem = db.prepare(`
+    INSERT INTO line_items
+      (receipt_id, raw_name, name, quantity, unit_price, total_price, category, subcategory, confidence, user_overridden)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+  `);
+
+  const transaction = db.transaction(() => {
+    updateReceipt.run(
+      parsed.transaction.date,
+      parsed.transaction.order_number ?? null,
+      parsed.transaction.subtotal ?? null,
+      parsed.transaction.tax ?? null,
+      parsed.transaction.total,
+      now,
+      receiptId
+    );
+
+    for (const item of parsed.items) {
+      insertItem.run(
+        receiptId,
+        item.raw_name,
+        item.name,
+        item.quantity,
+        item.unit_price,
+        item.total_price,
+        "",   // category filled in Phase 4
+        null, // subcategory filled in Phase 4
+        item.confidence
+      );
+    }
+  });
+
+  transaction();
+};
