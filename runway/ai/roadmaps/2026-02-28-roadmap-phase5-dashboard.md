@@ -7,7 +7,7 @@
 
 - [x] Task 1: Schema fixes (user_id for budgets/rules, indexes)
 - [x] Task 2: GET /api/dashboard/summary
-- [ ] Task 3: GET/PUT /api/categories
+- [x] Task 3: GET/PUT /api/categories
 - [ ] Task 4: PeriodToggle component
 - [ ] Task 5: SummaryStats component
 - [ ] Task 6: CategoryCard component
