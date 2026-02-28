@@ -28,7 +28,7 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 ### API Routes
 - [x] `app/api/auth/disconnect/route.ts` — DELETE: revoke OAuth token, sign out user
 - [x] `app/api/rules/route.ts` — GET all rules, POST new rule
-- [ ] `app/api/rules/[id]/route.ts` — DELETE rule, call `clearRulesCache()`
+- [x] `app/api/rules/[id]/route.ts` — DELETE rule, call `clearRulesCache()`
 - [ ] `app/api/items/export/route.ts` — GET: stream CSV of all user line items
 - [ ] `app/api/account/route.ts` — DELETE: wipe all user data from all tables, sign out
 
