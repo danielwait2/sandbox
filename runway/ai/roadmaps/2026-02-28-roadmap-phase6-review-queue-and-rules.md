@@ -6,7 +6,7 @@
 ## Tasks
 
 - [x] Task 1: GET /api/review-queue
-- [ ] Task 2: PATCH /api/items/[id]/skip
+- [x] Task 2: PATCH /api/items/[id]/skip
 - [ ] Task 3: ReviewCard component
 - [ ] Task 4: Review queue page
 - [ ] Task 5: Dashboard badge for review queue
