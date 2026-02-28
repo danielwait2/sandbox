@@ -7,6 +7,73 @@ import { parseContributorFilter, resolveAccountContextForUser } from "@/lib/acco
 
 const tipsCache = new Map<string, { tips: string[]; generatedAt: string }>();
 
+const stripFences = (text: string): string =>
+  text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+const parseTipsResponse = (raw: string): string[] | null => {
+  const cleaned = stripFences(raw);
+  try {
+    const parsed = JSON.parse(cleaned) as unknown;
+    if (Array.isArray(parsed)) {
+      const tips = parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+      return tips.length > 0 ? tips : null;
+    }
+  } catch {
+    // Try extracting an array if the model included extra text.
+  }
+
+  const match = cleaned.match(/\[[\s\S]*\]/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    const tips = parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return tips.length > 0 ? tips : null;
+  } catch {
+    return null;
+  }
+};
+
+const buildFallbackTips = (
+  frequentItems: ReturnType<typeof getTopFrequentItems>,
+  trends: ReturnType<typeof getCategoryTrends>,
+  annualized: ReturnType<typeof getAnnualizedSpending>
+): string[] => {
+  const tips: string[] = [];
+  const risingCategory = trends
+    .filter((t) => t.changePercent > 0)
+    .sort((a, b) => b.changePercent - a.changePercent)[0];
+  if (risingCategory) {
+    tips.push(
+      `${risingCategory.category} is up ${risingCategory.changePercent}% this month. Set a cap for next month and shift one purchase to a lower-cost alternative.`
+    );
+  }
+
+  const topFrequent = frequentItems.sort((a, b) => b.count - a.count)[0];
+  if (topFrequent) {
+    tips.push(
+      `You bought ${topFrequent.name} ${topFrequent.count} times this month. Buying this item in bulk or during sales can lower your per-unit cost.`
+    );
+  }
+
+  const topAnnualized = annualized.sort((a, b) => b.annualProjection - a.annualProjection)[0];
+  if (topAnnualized) {
+    tips.push(
+      `${topAnnualized.category} is projected around $${topAnnualized.annualProjection.toFixed(0)}/year. A 10% reduction would save about $${(topAnnualized.annualProjection * 0.1).toFixed(0)} annually.`
+    );
+  }
+
+  if (tips.length === 0) {
+    tips.push("Track one high-spend category weekly and aim for a 5-10% reduction over the next month.");
+  }
+
+  return tips.slice(0, 5);
+};
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -61,14 +128,20 @@ Return ONLY a JSON array of strings, each string being one tip. No markdown, no 
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
-    const tips = JSON.parse(text) as string[];
+    const tips = parseTipsResponse(text);
+    if (!tips) {
+      throw new Error("Model response could not be parsed into tips array");
+    }
     const entry = { tips, generatedAt: new Date().toISOString() };
     tipsCache.set(cacheKey, entry);
     return NextResponse.json(entry);
-  } catch {
-    return NextResponse.json(
-      { error: "Failed to generate tips" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("[insights/tips] Gemini generation failed, returning fallback tips:", error);
+    const entry = {
+      tips: buildFallbackTips(frequentItems, trends, annualized),
+      generatedAt: new Date().toISOString(),
+    };
+    tipsCache.set(cacheKey, entry);
+    return NextResponse.json(entry);
   }
 }
