@@ -11,7 +11,7 @@
 - [x] Task 4: PeriodToggle component
 - [x] Task 5: SummaryStats component
 - [x] Task 6: CategoryCard component
-- [ ] Task 7: Dashboard page (replace stub)
+- [x] Task 7: Dashboard page (replace stub)
 - [ ] Task 8: Category drill-down page
 
 ## Success Criteria
