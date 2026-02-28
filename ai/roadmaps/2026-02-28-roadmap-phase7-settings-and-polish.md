@@ -33,11 +33,11 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 - [x] `app/api/account/route.ts` — DELETE: wipe all user data from all tables, sign out
 
 ### Settings Page
-- [ ] `app/settings/page.tsx` — four sections: Gmail Connection, Custom Rules, Export Data, Danger Zone
-- [ ] Gmail section: show email + connected status, "Disconnect Gmail" button
-- [ ] Rules section: list all rules with delete per row
-- [ ] Export section: "Export CSV" triggers browser download
-- [ ] Danger Zone: "Delete Account" with confirmation modal (type "DELETE")
+- [x] `app/settings/page.tsx` — four sections: Gmail Connection, Custom Rules, Export Data, Danger Zone
+- [x] Gmail section: show email + connected status, "Disconnect Gmail" button
+- [x] Rules section: list all rules with delete per row
+- [x] Export section: "Export CSV" triggers browser download
+- [x] Danger Zone: "Delete Account" with confirmation modal (type "DELETE")
 
 ### Schema Fix
 - [x] Add `user_id` to `rules` table migration (same fix as `budgets` in Phase 5)
