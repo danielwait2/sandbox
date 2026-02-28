@@ -67,6 +67,35 @@ CREATE TABLE IF NOT EXISTS price_history (
   retailer             TEXT    NOT NULL,
   date                 TEXT    NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS accounts (
+  id             TEXT PRIMARY KEY,
+  owner_user_id  TEXT NOT NULL,
+  created_at     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS account_memberships (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  user_id    TEXT NOT NULL,
+  role       TEXT NOT NULL DEFAULT 'owner',
+  status     TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(account_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS mailbox_connections (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id       TEXT NOT NULL,
+  provider      TEXT NOT NULL,
+  access_token  TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'connected',
+  connected_at  TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  UNIQUE(user_id, provider)
+);
 `;
 
 const defaultCategories = [
