@@ -16,5 +16,14 @@ export const isReceiptEmail = (from: string): ReceiptDetectionResult => {
     return { isReceipt: true, retailer: "Costco" };
   }
 
+  // DEV ONLY: treat emails from your own address as Walmart receipts for testing
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.DEV_TEST_EMAIL &&
+    normalizedFrom.includes(process.env.DEV_TEST_EMAIL.toLowerCase())
+  ) {
+    return { isReceipt: true, retailer: "Walmart" };
+  }
+
   return { isReceipt: false, retailer: null };
 };

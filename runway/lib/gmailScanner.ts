@@ -71,7 +71,12 @@ export const scanGmail = async (
   const { gmail } = await createGmailClient({ accessToken, refreshToken });
 
   const afterEpoch = getAfterEpoch(userId);
-  const query = `from:(walmart.com OR costco.com) after:${afterEpoch}`;
+  const devEmail = process.env.NODE_ENV !== "production" ? process.env.DEV_TEST_EMAIL : undefined;
+  const fromClause = devEmail
+    ? `(walmart.com OR costco.com OR ${devEmail})`
+    : "(walmart.com OR costco.com)";
+  const query = `from:${fromClause} after:${afterEpoch}`;
+  console.log(`[gmailScanner] query: ${query}`);
 
   const listResponse = await gmail.users.messages.list({
     userId: "me",

@@ -107,7 +107,7 @@ export const categorizeItems = async (
         const r = await categorizeWithGemini(item.name);
         resolved.push({ id: item.id, ...r });
         llmUsed++;
-        if (r.confidence < 0.8) reviewQueue++;
+        if (r.confidence < 0.4) reviewQueue++;
       }
     }
 

@@ -20,19 +20,24 @@ export async function POST() {
     );
   }
 
+  console.log(`[scan] user=${session.user.email} DEV_TEST_EMAIL=${process.env.DEV_TEST_EMAIL ?? 'not set'}`);
+
   const scanResult = await scanGmail(
     session.user.email,
     session.accessToken,
     session.refreshToken
   );
+  console.log(`[scan] gmail result: scanned=${scanResult.scanned} new=${scanResult.new} skipped=${scanResult.skipped}`);
 
   const parseResult = await processUnparsedReceipts(
     session.user.email,
     session.accessToken,
     session.refreshToken
   );
+  console.log(`[scan] parse result: processed=${parseResult.processed} failed=${parseResult.failed}`);
 
   const categorizeResult = await categorizeItems(session.user.email);
+  console.log(`[scan] categorize result: categorized=${categorizeResult.categorized} reviewQueue=${categorizeResult.reviewQueue}`);
 
   return NextResponse.json({
     scanned: scanResult.scanned,

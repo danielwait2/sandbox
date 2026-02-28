@@ -22,6 +22,45 @@ type SummaryData = {
   categories: CategoryData[];
 };
 
+function ScanButton({ onComplete }: { onComplete: () => void }) {
+  const [scanning, setScanning] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const handleScan = async () => {
+    setScanning(true);
+    setResult(null);
+    try {
+      const res = await fetch('/api/receipts/scan', { method: 'POST' });
+      const json = await res.json() as { new?: number; parsed?: number; error?: string };
+      if (!res.ok) {
+        setResult(json.error ?? 'Scan failed');
+      } else {
+        const msg = `Found ${json.new ?? 0} new receipts, parsed ${json.parsed ?? 0}`;
+        setResult(msg);
+        if ((json.new ?? 0) > 0) {
+          setTimeout(() => onComplete(), 2000);
+        }
+      }
+    } catch {
+      setResult('Scan failed — check console');
+    }
+    setScanning(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={handleScan}
+        disabled={scanning}
+        className="inline-block bg-zinc-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50"
+      >
+        {scanning ? 'Scanning...' : 'Scan Receipts'}
+      </button>
+      {result && <p className="text-sm text-zinc-500">{result}</p>}
+    </div>
+  );
+}
+
 function SkeletonCard() {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5 animate-pulse">
@@ -77,6 +116,8 @@ export default function DashboardPage() {
     <main className="mx-auto max-w-5xl p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
+        <div className="flex items-center gap-3">
+        <ScanButton onComplete={() => fetchSummary(period)} />
         {reviewCount > 0 && (
           <a
             href="/review-queue"
@@ -85,6 +126,7 @@ export default function DashboardPage() {
             {reviewCount} items need review
           </a>
         )}
+        </div>
       </div>
 
       <PeriodToggle period={period} onChange={handlePeriodChange} />
@@ -110,12 +152,7 @@ export default function DashboardPage() {
               <p className="text-zinc-600 text-lg mb-4">
                 Connect Gmail and scan your receipts to get started
               </p>
-              <a
-                href="/api/receipts/scan"
-                className="inline-block bg-zinc-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700"
-              >
-                Scan Receipts
-              </a>
+              <ScanButton onComplete={() => fetchSummary(period)} />
             </div>
           ) : (
             <SummaryStats

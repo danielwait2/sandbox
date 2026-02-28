@@ -22,23 +22,24 @@ export type ParsedReceipt = {
   items: ParsedItem[];
 };
 
-const PROMPT_TEMPLATE = `You are a receipt parser. Extract all line items from the following retail receipt email.
+const PROMPT_TEMPLATE = `You are a receipt parser. Extract all line items from the following retail receipt email. The email may be a forwarded message — focus on the actual receipt content, ignoring forward headers and disclaimers.
 Return ONLY a valid JSON object — no markdown, no explanation.
 
 Required format:
 {
-  "retailer": { "name": "Walmart" | "Costco" },
-  "transaction": { "date": "YYYY-MM-DD", "subtotal": number, "tax": number, "total": number, "order_number": "string | null" },
+  "retailer": { "name": "string" },
+  "transaction": { "date": "YYYY-MM-DD", "subtotal": number | null, "tax": number | null, "total": number, "order_number": "string | null" },
   "items": [
-    { "raw_name": "...", "name": "...", "quantity": number, "unit_price": number, "total_price": number, "confidence": number }
+    { "raw_name": "...", "name": "human-readable product name", "quantity": number, "unit_price": number, "total_price": number, "confidence": number }
   ]
 }
 
 Rules:
-- "raw_name" is the exact text from the receipt; "name" is a human-readable normalized version
+- "raw_name" is the exact abbreviated text from the receipt (e.g. "CHEERIOS-HN"); "name" is a human-readable normalized version (e.g. "Honey Nut Cheerios")
 - "confidence" is 0.0–1.0 representing how certain you are about this line item's data
 - Omit items that are clearly not products (e.g., subtotal lines, tax lines, loyalty rewards)
 - If a field is missing from the email, use null
+- Abbreviated item codes like "BSIFBREAST" should be decoded to "Boneless Skinless Chicken Breast", etc.
 
 Receipt email:
 `;
