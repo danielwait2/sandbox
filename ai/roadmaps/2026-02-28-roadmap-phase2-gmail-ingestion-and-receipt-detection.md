@@ -27,7 +27,7 @@ Use the user's Gmail OAuth token to fetch emails, filter to Walmart and Costco r
 
 ### Gmail Client
 - [x] Install `googleapis`
-- [ ] `lib/gmail.ts` — authenticated Gmail client factory with token refresh
+- [x] `lib/gmail.ts` — authenticated Gmail client factory with token refresh
 
 ### Receipt Detection
 - [ ] `lib/receiptDetector.ts` — pure `isReceiptEmail(from)` function (no I/O, unit-testable)
