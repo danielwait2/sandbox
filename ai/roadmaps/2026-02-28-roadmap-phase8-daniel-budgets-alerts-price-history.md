@@ -1,6 +1,6 @@
 # Phase 8 Roadmap: Budget Targets, Spending Alerts & Price History
 
-**Status:** Not Started
+**Status:** In Progress
 **Timeline:** Days 16–18
 **Detailed Plan:** [phase-8-daniel-budgets-alerts-price-history.md](./phase-8-daniel-budgets-alerts-price-history.md)
 
@@ -26,25 +26,30 @@ Extends the MVP with three family budgeting features targeted at Costco shoppers
 ## Task Checklist
 
 ### Database
-- [ ] Add `budget_defaults` table migration — `(id, user_id, category, amount)`
-- [ ] Add `price_history` table migration — `(id, user_id, item_name_normalized, unit_price, retailer, date)`
-- [ ] Wire both migrations into `lib/migrations.ts`
+- [x] Add `budget_defaults` table migration — `(id, user_id, category, amount)`
+- [x] Add `price_history` table migration — `(id, user_id, item_name_normalized, unit_price, retailer, date)`
+- [x] Wire both migrations into `lib/migrations.ts`
 
 ### API Routes
-- [ ] `app/api/budget-defaults/route.ts` — GET all defaults for user, PUT upsert a default
-- [ ] Extend `app/api/categories/route.ts` PUT — on upsert, if no budget row exists for the month, seed from `budget_defaults`
-- [ ] `app/api/item-history/route.ts` — GET `?name=<normalized>`, returns price entries sorted by date
-- [ ] Extend `lib/parseReceipt.ts` (or receipt scan flow) — after saving line items, upsert each into `price_history`
-- [ ] Backfill script: `lib/backfillPriceHistory.ts` — one-time migration, runs on first server startup if `price_history` is empty for the user
+- [x] `app/api/budget-defaults/route.ts` — GET all defaults for user, PUT upsert a default
+- [x] Extend `app/api/categories/route.ts` PUT — on upsert, if no budget row exists for the month, seed from `budget_defaults`
+- [x] `app/api/item-history/route.ts` — GET `?name=<normalized>`, returns price entries sorted by date
+- [x] Extend `lib/parseReceipt.ts` (or receipt scan flow) — after saving line items, upsert each into `price_history`
+- [x] Backfill script: `lib/backfillPriceHistory.ts` — one-time migration, runs on first server startup if `price_history` is empty for the user
 
 ### UI Components
-- [ ] `components/SpendingAlertBanner.tsx` — alert banner listing categories ≥ 90% of budget; dismissible via `localStorage`
-- [ ] `components/BudgetRow.tsx` — one row for `/budget` page: category name, editable amount, progress bar, "Set as default" toggle
-- [ ] Extend `app/dashboard/category/[name]/page.tsx` — add price trend note per line item ("↑ $2.50 since last purchase" / "Stable")
+- [x] `components/SpendingAlertBanner.tsx` — alert banner listing categories ≥ 90% of budget; dismissible via `localStorage`
+- [x] `components/BudgetRow.tsx` — one row for `/budget` page: category name, editable amount, progress bar, "Set as default" toggle
+- [x] Extend `app/dashboard/category/[name]/page.tsx` — add price trend note per line item ("↑ $2.50 since last purchase" / "Stable")
+
+### Dashboard Improvements
+- [x] Rename "Scan Receipts" button → "Pull Receipts from Email" everywhere it appears (`app/dashboard/page.tsx` button label and empty-state copy)
+- [x] Remove "Most Frequent Item" stat from `SummaryStats` component and from the `SummaryData` type + API response
+- [x] Fix month-aware category drill-down: pass the currently selected period/month as a query param in the `router.push` call so clicking a tile from "Last Month" loads that month's items — not always the current month. Update `app/dashboard/category/[name]/page.tsx` to read `?month=` from `useSearchParams()` and fall back to `currentMonth` only if absent.
 
 ### Pages
-- [ ] `app/budget/page.tsx` — dedicated budget management page, one `BudgetRow` per category
-- [ ] Add `/budget` link to persistent nav bar
+- [x] `app/budget/page.tsx` — dedicated budget management page, one `BudgetRow` per category
+- [x] Add `/budget` link to persistent nav bar
 
 ---
 
@@ -60,6 +65,9 @@ Extends the MVP with three family budgeting features targeted at Costco shoppers
 - [ ] Existing `line_items` are backfilled into `price_history` on first run
 - [ ] `GET /api/item-history?name=<normalized>` returns correct price entries in date order
 - [ ] Category drill-down shows a price trend note for each item that has ≥ 2 history entries
+- [ ] "Scan Receipts" button label reads "Pull Receipts from Email" across all surfaces
+- [ ] "Most Frequent Item" stat removed from dashboard summary stats and API response
+- [ ] Clicking a category tile from any period (e.g. "Last Month") correctly shows that period's items in the drill-down, not current month's items
 - [ ] `next build` completes with zero errors
 
 ---

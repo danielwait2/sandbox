@@ -322,6 +322,60 @@ Implementation note: to avoid N+1 fetches, fetch all history for the page's item
 
 ---
 
+---
+
+### Feature 4: Dashboard Improvements & Bug Fixes
+
+#### Step 14 — Rename "Scan Receipts" → "Pull Receipts from Email"
+
+**File:** `app/dashboard/page.tsx`
+
+Change both button label strings from `'Scan Receipts'` / `'Scanning...'` to `'Pull Receipts from Email'` / `'Pulling...'`. Update the empty-state copy from `"Connect Gmail and scan your receipts to get started"` to `"Connect Gmail and pull your receipts to get started"`.
+
+---
+
+#### Step 15 — Remove "Most Frequent Item" from dashboard summary
+
+**Files:** `app/dashboard/page.tsx`, `components/SummaryStats.tsx`, `app/api/dashboard/summary/route.ts`
+
+1. Remove `mostFrequentItem` from the `SummaryData` type in `page.tsx`
+2. Remove it from the `<SummaryStats>` call and from the `SummaryStats` component props/render
+3. Remove it from the API response in the summary route
+4. Remove it from the DB query if it has one (likely a `GROUP BY` + `ORDER BY COUNT` query)
+
+The dashboard summary stats should show: **Total Spend**, **Receipt Count**, **Top Category** (three tiles).
+
+---
+
+#### Step 16 — Fix month-aware category drill-down
+
+**Bug:** `app/dashboard/category/[name]/page.tsx` hardcodes `currentMonth` on line 39 (`fetch(\`/api/items?category=...&month=${currentMonth}\``), so switching the period selector to "Last Month" and clicking a tile still shows this month's data.
+
+**Fix — dashboard page (`app/dashboard/page.tsx`):**
+
+In the `router.push` call for category card clicks, append the selected period as a query param:
+
+```ts
+onClick={() =>
+  router.push(
+    '/dashboard/category/' + encodeURIComponent(cat.name) + '?period=' + encodeURIComponent(period)
+  )
+}
+```
+
+**Fix — drill-down page (`app/dashboard/category/[name]/page.tsx`):**
+
+1. Add `useSearchParams` import from `next/navigation`
+2. Read the period: `const searchParams = useSearchParams(); const period = searchParams.get('period') ?? 'this_month';`
+3. Resolve the month string from the period the same way the dashboard API does — extract a helper or inline the logic:
+   - `'this_month'` → `new Date().toISOString().slice(0, 7)`
+   - `'last_month'` → compute previous month as `YYYY-MM`
+   - A literal `'YYYY-MM'` value → use as-is
+4. Pass the resolved month to the API fetch instead of always using `currentMonth`
+5. Update the empty-state message to reflect the selected month (e.g. "No items in this category for January 2026.")
+
+---
+
 ## File Structure
 
 ```
@@ -405,7 +459,9 @@ No new npm packages required.
 - `app/budget/page.tsx`
 - `components/BudgetRow.tsx`
 - `components/SpendingAlertBanner.tsx`
-- Updated `app/dashboard/page.tsx` — alert banner
-- Updated `app/dashboard/category/[name]/page.tsx` — price trend notes
+- Updated `app/dashboard/page.tsx` — alert banner, renamed button, removed most-frequent-item stat, period passed to drill-down
+- Updated `app/dashboard/category/[name]/page.tsx` — price trend notes, month-aware data fetch via `?period=` param
+- Updated `components/SummaryStats.tsx` — removed mostFrequentItem prop/render
+- Updated `app/api/dashboard/summary/route.ts` — removed mostFrequentItem from response
 - Updated nav — `/budget` link
 - Clean `next build` with zero errors

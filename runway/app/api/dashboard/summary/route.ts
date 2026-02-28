@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  buildReceiptContributorClause,
-  getContributorUserIds,
-  parseContributorFilter,
-  resolveAccountContextForUser,
-} from "@/lib/account";
+import { seedBudgetFromDefaults } from "@/lib/budgets";
+import { backfillPriceHistoryIfEmpty } from "@/lib/backfillPriceHistory";
 
 const DEFAULT_CATEGORIES = [
   "Groceries",
@@ -57,57 +53,39 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const context = resolveAccountContextForUser(session.user.email);
-  if (!context) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+  const userId = session.user.email;
   const period = req.nextUrl.searchParams.get("period") ?? "this_month";
-  const contributor = parseContributorFilter(req.nextUrl.searchParams.get("contributor"));
-  if (!contributor) {
-    return NextResponse.json({ error: "Invalid contributor filter" }, { status: 400 });
-  }
-
   const { startDate, endDate } = getDateRange(period);
   const startMonth = startDate.slice(0, 7);
-  const contributorUserIds = getContributorUserIds(context, contributor);
-  const receiptScope = buildReceiptContributorClause("r", contributorUserIds);
-  const plainReceiptScope = buildReceiptContributorClause("receipts", contributorUserIds);
+
+  seedBudgetFromDefaults(userId, startMonth);
+  backfillPriceHistoryIfEmpty(userId);
 
   type CategoryRow = { category: string; spend: number; item_count: number };
   const categoryRows = db
     .prepare(
       `SELECT li.category, SUM(li.total_price) as spend, COUNT(li.id) as item_count
        FROM line_items li JOIN receipts r ON li.receipt_id = r.id
-       WHERE ${receiptScope.whereSql} AND r.transaction_date >= ? AND r.transaction_date <= ?
+       WHERE r.user_id = ? AND r.transaction_date >= ? AND r.transaction_date <= ?
        GROUP BY li.category`
     )
-    .all(...receiptScope.params, startDate, endDate) as CategoryRow[];
+    .all(userId, startDate, endDate) as CategoryRow[];
 
   type CountRow = { count: number };
   const { count: receiptCount } = db
     .prepare(
-      `SELECT COUNT(*) as count FROM receipts
-       WHERE ${plainReceiptScope.whereSql} AND transaction_date >= ? AND transaction_date <= ?`
+      `SELECT COUNT(DISTINCT r.id) as count
+       FROM receipts r JOIN line_items li ON li.receipt_id = r.id
+       WHERE r.user_id = ? AND r.transaction_date >= ? AND r.transaction_date <= ?`
     )
-    .get(...plainReceiptScope.params, startDate, endDate) as CountRow;
-
-  type FreqRow = { name: string; c: number };
-  const freqRow = db
-    .prepare(
-      `SELECT li.name, COUNT(*) as c
-       FROM line_items li JOIN receipts r ON li.receipt_id = r.id
-       WHERE ${receiptScope.whereSql} AND r.transaction_date >= ? AND r.transaction_date <= ?
-       GROUP BY li.name ORDER BY c DESC LIMIT 1`
-    )
-    .get(...receiptScope.params, startDate, endDate) as FreqRow | undefined;
+    .get(userId, startDate, endDate) as CountRow;
 
   type BudgetRow = { category: string; amount: number };
   const budgetRows = db
     .prepare(
       `SELECT category, amount FROM budgets WHERE user_id = ? AND month = ?`
     )
-    .all(context.ownerUserId, startMonth) as BudgetRow[];
+    .all(userId, startMonth) as BudgetRow[];
 
   const budgetMap = new Map<string, number>();
   for (const b of budgetRows) {
@@ -140,11 +118,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     period,
-    contributor,
     totalSpend,
     receiptCount,
     topCategory: receiptCount > 0 ? topCategory : "",
-    mostFrequentItem: freqRow?.name ?? "",
     categories,
   });
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import PeriodToggle from './components/PeriodToggle';
 import SummaryStats from './components/SummaryStats';
 import CategoryCard from './components/CategoryCard';
+import SpendingAlertBanner from './components/SpendingAlertBanner';
 
 type CategoryData = {
   name: string;
@@ -15,26 +16,10 @@ type CategoryData = {
 
 type SummaryData = {
   period: string;
-  contributor?: 'all' | 'owner' | 'member';
   totalSpend: number;
   receiptCount: number;
   topCategory: string;
-  mostFrequentItem: string;
   categories: CategoryData[];
-};
-
-type ContributorFilter = 'all' | 'owner' | 'member';
-type AccountMember = { userId: string; role: 'owner' | 'member'; status: 'pending' | 'active' | 'removed' };
-type MembersResponse = { members: AccountMember[] };
-
-const formatUserLabel = (userId: string | null): string => {
-  if (!userId) return 'Member';
-  const local = userId.split('@')[0] ?? userId;
-  return local
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
 };
 
 function ScanButton({ onComplete }: { onComplete: () => void }) {
@@ -48,7 +33,7 @@ function ScanButton({ onComplete }: { onComplete: () => void }) {
       const res = await fetch('/api/receipts/scan', { method: 'POST' });
       const json = await res.json() as { new?: number; parsed?: number; error?: string };
       if (!res.ok) {
-        setResult(json.error ?? 'Scan failed');
+        setResult(json.error ?? 'Pull failed');
       } else {
         const msg = `Found ${json.new ?? 0} new receipts, parsed ${json.parsed ?? 0}`;
         setResult(msg);
@@ -57,7 +42,7 @@ function ScanButton({ onComplete }: { onComplete: () => void }) {
         }
       }
     } catch {
-      setResult('Scan failed — check console');
+      setResult('Pull failed — check console');
     }
     setScanning(false);
   };
@@ -69,7 +54,7 @@ function ScanButton({ onComplete }: { onComplete: () => void }) {
         disabled={scanning}
         className="inline-block bg-zinc-900 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50"
       >
-        {scanning ? 'Scanning...' : 'Scan Receipts'}
+        {scanning ? 'Pulling...' : 'Pull Receipts from Email'}
       </button>
       {result && <p className="text-sm text-zinc-500">{result}</p>}
     </div>
@@ -89,18 +74,15 @@ function SkeletonCard() {
 export default function DashboardPage() {
   const router = useRouter();
   const [period, setPeriod] = useState('this_month');
-  const [contributor, setContributor] = useState<ContributorFilter>('all');
   const [data, setData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewCount, setReviewCount] = useState(0);
-  const [ownerLabel, setOwnerLabel] = useState('Owner');
-  const [memberLabel, setMemberLabel] = useState('Member');
 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
-  const fetchSummary = async (p: string, c: ContributorFilter) => {
+  const fetchSummary = async (p: string) => {
     setLoading(true);
-    const res = await fetch(`/api/dashboard/summary?period=${p}&contributor=${c}`);
+    const res = await fetch(`/api/dashboard/summary?period=${p}`);
     if (res.ok) {
       const json = (await res.json()) as SummaryData;
       setData(json);
@@ -109,22 +91,12 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    void fetchSummary(period, contributor);
-    fetch('/api/account/members')
-      .then((r) => r.json())
-      .then((j: MembersResponse) => {
-        const owner = j.members?.find((m) => m.role === 'owner');
-        const member = j.members?.find((m) => m.role === 'member' && m.status !== 'removed');
-        setOwnerLabel(formatUserLabel(owner?.userId ?? null));
-        setMemberLabel(formatUserLabel(member?.userId ?? null));
-      })
-      .catch(() => {});
-    // fetch review count
+    void fetchSummary(period);
     fetch('/api/review-queue')
       .then((r) => r.json())
       .then((j: { count: number }) => setReviewCount(j.count ?? 0))
       .catch(() => {});
-  }, [period, contributor]);
+  }, [period]);
 
   const handlePeriodChange = (p: string) => {
     setPeriod(p);
@@ -136,7 +108,7 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category: categoryName, month: currentMonth, amount }),
     });
-    await fetchSummary(period, contributor);
+    await fetchSummary(period);
   };
 
   return (
@@ -144,7 +116,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
         <div className="flex items-center gap-3">
-        <ScanButton onComplete={() => fetchSummary(period, contributor)} />
+        <ScanButton onComplete={() => fetchSummary(period)} />
         {reviewCount > 0 && (
           <a
             href="/review-queue"
@@ -157,25 +129,6 @@ export default function DashboardPage() {
       </div>
 
       <PeriodToggle period={period} onChange={handlePeriodChange} />
-      <div className="border-b border-zinc-200">
-        {[
-          { key: 'all', label: 'All Contributors' },
-          { key: 'owner', label: ownerLabel },
-          { key: 'member', label: memberLabel },
-        ].map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setContributor(opt.key as ContributorFilter)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
-              contributor === opt.key
-                ? 'border-zinc-900 text-zinc-900'
-                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
 
       {loading ? (
         <>
@@ -196,17 +149,19 @@ export default function DashboardPage() {
           {data.receiptCount === 0 ? (
             <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center">
               <p className="text-zinc-600 text-lg mb-4">
-                Connect Gmail and scan your receipts to get started
+                Connect Gmail and pull your receipts to get started
               </p>
-              <ScanButton onComplete={() => fetchSummary(period, contributor)} />
+              <ScanButton onComplete={() => fetchSummary(period)} />
             </div>
           ) : (
-            <SummaryStats
-              totalSpend={data.totalSpend}
-              receiptCount={data.receiptCount}
-              topCategory={data.topCategory}
-              mostFrequentItem={data.mostFrequentItem}
-            />
+            <>
+              <SpendingAlertBanner categories={data.categories} />
+              <SummaryStats
+                totalSpend={data.totalSpend}
+                receiptCount={data.receiptCount}
+                topCategory={data.topCategory}
+              />
+            </>
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -217,7 +172,14 @@ export default function DashboardPage() {
                 spend={cat.spend}
                 budget={cat.budget}
                 itemCount={cat.itemCount}
-                onClick={() => router.push('/dashboard/category/' + encodeURIComponent(cat.name))}
+                onClick={() =>
+                  router.push(
+                    '/dashboard/category/' +
+                      encodeURIComponent(cat.name) +
+                      '?period=' +
+                      encodeURIComponent(period)
+                  )
+                }
                 onBudgetSave={(amount) => handleBudgetSave(cat.name, amount)}
               />
             ))}

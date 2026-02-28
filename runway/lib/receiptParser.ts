@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { model } from "@/lib/gemini";
+import { upsertPriceHistory } from "@/lib/priceHistory";
 
 export type ParsedItem = {
   raw_name: string;
@@ -22,8 +23,13 @@ export type ParsedReceipt = {
   items: ParsedItem[];
 };
 
-const PROMPT_TEMPLATE = `You are a receipt parser. Extract all line items from the following retail receipt email. The email may be a forwarded message — focus on the actual receipt content, ignoring forward headers and disclaimers.
-Return ONLY a valid JSON object — no markdown, no explanation.
+const PROMPT_TEMPLATE = `You are a receipt parser. Your job is to extract purchased line items from retail purchase receipt emails.
+
+FIRST, determine if this email is an actual purchase receipt — meaning it contains a list of products the customer bought with prices. Promotional emails, marketing emails, shipping notifications, order status updates, rewards summaries, and newsletters are NOT receipts.
+
+If this email is NOT a purchase receipt, return exactly: {"not_a_receipt": true}
+
+If it IS a purchase receipt, return ONLY a valid JSON object — no markdown, no explanation.
 
 Required format:
 {
@@ -41,7 +47,7 @@ Rules:
 - If a field is missing from the email, use null
 - Abbreviated item codes like "BSIFBREAST" should be decoded to "Boneless Skinless Chicken Breast", etc.
 
-Receipt email:
+Email:
 `;
 
 const stripFences = (text: string): string => {
@@ -85,7 +91,8 @@ export const parseReceipt = async (
 
 export const persistParsedReceipt = (
   receiptId: string,
-  parsed: ParsedReceipt
+  parsed: ParsedReceipt,
+  userId: string
 ): void => {
   const now = new Date().toISOString();
 
@@ -133,4 +140,14 @@ export const persistParsedReceipt = (
   });
 
   transaction();
+
+  upsertPriceHistory(
+    userId,
+    parsed.items.map((item) => ({
+      name: item.name,
+      unit_price: item.unit_price,
+      retailer: parsed.retailer.name,
+      date: parsed.transaction.date,
+    }))
+  );
 };

@@ -4,7 +4,6 @@ type Props = {
   totalSpend: number;
   receiptCount: number;
   topCategory: string;
-  mostFrequentItem: string;
 };
 
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -20,7 +19,6 @@ export default function SummaryStats({
   totalSpend,
   receiptCount,
   topCategory,
-  mostFrequentItem,
 }: Props) {
   const formatted = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -28,11 +26,10 @@ export default function SummaryStats({
   }).format(totalSpend);
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="grid grid-cols-3 gap-4">
       <StatTile label="Total Spend" value={formatted} />
       <StatTile label="Receipts" value={String(receiptCount)} />
       <StatTile label="Top Category" value={topCategory || '—'} />
-      <StatTile label="Most Frequent Item" value={mostFrequentItem || '—'} />
     </div>
   );
 }

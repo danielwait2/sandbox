@@ -68,6 +68,12 @@ export async function GET(req: NextRequest) {
     params.push(month);
   }
 
+  const since = searchParams.get("since"); // YYYY-MM — inclusive lower bound
+  if (since) {
+    query += " AND substr(r.transaction_date, 1, 7) >= ?";
+    params.push(since);
+  }
+
   query += " ORDER BY li.total_price DESC";
 
   const items = db.prepare(query).all(...params) as ItemRow[];

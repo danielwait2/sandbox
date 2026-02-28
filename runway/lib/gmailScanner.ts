@@ -81,8 +81,8 @@ export const scanGmail = async (
   const afterEpoch = getAfterEpoch(userId);
   const devEmail = process.env.NODE_ENV !== "production" ? process.env.DEV_TEST_EMAIL : undefined;
   const fromClause = devEmail
-    ? `(walmart.com OR costco.com OR ${devEmail})`
-    : "(walmart.com OR costco.com)";
+    ? `(walmart.com OR costco.com OR samsclub.com OR info.samsclub.com OR ${devEmail})`
+    : "(walmart.com OR costco.com OR samsclub.com OR info.samsclub.com)";
   const query = `from:${fromClause} after:${afterEpoch}`;
   console.log(`[gmailScanner] query: ${query}`);
 
