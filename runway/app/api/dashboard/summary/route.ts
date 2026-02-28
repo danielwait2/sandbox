@@ -74,8 +74,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   type CountRow = { count: number };
   const { count: receiptCount } = db
     .prepare(
-      `SELECT COUNT(*) as count FROM receipts
-       WHERE user_id = ? AND transaction_date >= ? AND transaction_date <= ?`
+      `SELECT COUNT(DISTINCT r.id) as count
+       FROM receipts r JOIN line_items li ON li.receipt_id = r.id
+       WHERE r.user_id = ? AND r.transaction_date >= ? AND r.transaction_date <= ?`
     )
     .get(userId, startDate, endDate) as CountRow;
 
