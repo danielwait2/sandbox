@@ -28,7 +28,7 @@ export async function GET() {
               COUNT(li.id) AS item_count
        FROM receipts r
        LEFT JOIN line_items li ON li.receipt_id = r.id
-       WHERE r.user_id = ?
+       WHERE r.user_id = ? AND r.transaction_date >= date('now', '-90 days')
        GROUP BY r.id
        HAVING COUNT(li.id) > 0
        ORDER BY r.transaction_date DESC`
