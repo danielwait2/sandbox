@@ -1,6 +1,6 @@
 # Phase 4 Roadmap: Categorization Engine
 
-**Status:** Not Started
+**Status:** In Progress
 **Timeline:** Days 7–8
 **Detailed Plan:** [phase-4-categorization-engine.md](./phase-4-categorization-engine.md)
 
@@ -26,20 +26,20 @@ Assign a category to every line item using a two-step hybrid: rules-based matchi
 ## Task Checklist
 
 ### Taxonomy & Rules Engine
-- [ ] `lib/categories.ts` — 9-category taxonomy constant with subcategories
-- [ ] `lib/rulesEngine.ts` — substring matcher against `rules` table, module-level cache, `clearRulesCache()`
+- [x] `lib/categories.ts` — 9-category taxonomy constant with subcategories
+- [x] `lib/rulesEngine.ts` — substring matcher against `rules` table, module-level cache, `clearRulesCache()`
 
 ### Gemini Categorizer
-- [ ] `lib/categorizer.ts` — `categorizeWithGemini()` with prompt, JSON parsing, fallback on error
-- [ ] `lib/categorizer.ts` — `categorizeItems(userId)` batch pipeline: rules first, Gemini fallback, DB update
+- [x] `lib/categorizer.ts` — `categorizeWithGemini()` with prompt, JSON parsing, fallback on error
+- [x] `lib/categorizer.ts` — `categorizeItems(userId)` batch pipeline: rules first, Gemini fallback, DB update
 
 ### Wire Into Scan
-- [ ] Call `categorizeItems()` in `POST /api/receipts/scan` after parsing
-- [ ] Return `{ categorized, reviewQueue }` counts in scan summary
+- [x] Call `categorizeItems()` in `POST /api/receipts/scan` after parsing
+- [x] Return `{ categorized, reviewQueue }` counts in scan summary
 
 ### API Routes
-- [ ] `app/api/items/route.ts` — GET all items with optional `category` and `month` query filters
-- [ ] `app/api/items/[id]/categorize/route.ts` — PATCH: update category, set `user_overridden = 1`, create rule, clear cache
+- [x] `app/api/items/route.ts` — GET all items with optional `category` and `month` query filters
+- [x] `app/api/items/[id]/categorize/route.ts` — PATCH: update category, set `user_overridden = 1`, create rule, clear cache
 
 ---
 
@@ -56,11 +56,11 @@ Assign a category to every line item using a two-step hybrid: rules-based matchi
 
 ## Key Deliverables
 
-- [ ] `lib/categories.ts` — taxonomy constant
-- [ ] `lib/rulesEngine.ts` — rules matcher with cache
-- [ ] `lib/categorizer.ts` — Gemini fallback + batch pipeline
-- [ ] `app/api/items/route.ts` — filterable items endpoint
-- [ ] `app/api/items/[id]/categorize/route.ts` — recategorize + rule creation
+- [x] `lib/categories.ts` — taxonomy constant
+- [x] `lib/rulesEngine.ts` — rules matcher with cache
+- [x] `lib/categorizer.ts` — Gemini fallback + batch pipeline
+- [x] `app/api/items/route.ts` — filterable items endpoint
+- [x] `app/api/items/[id]/categorize/route.ts` — recategorize + rule creation
 
 ---
 
@@ -83,5 +83,5 @@ Before moving to `ai/roadmaps/complete`:
 ---
 
 **Created:** 2026-02-28
-**Last Updated:** 2026-02-28
+**Last Updated:** 2026-02-28 (all tasks complete; success criteria blocked on live validation)
 **Next Phase:** [Phase 5 Roadmap](./2026-02-28-roadmap-phase5-dashboard.md)
