@@ -47,35 +47,36 @@ Use the user's Gmail OAuth token to fetch emails, filter to Walmart and Costco r
 - [ ] `POST /api/receipts/scan` triggers a Gmail scan for the authenticated user
 - [ ] Only `@walmart.com` and `@costco.com` emails are inserted
 - [ ] Second scan returns `new: 0, skipped: N` (deduplication works)
-- [ ] `receipts` rows have `parsed_at = NULL` (ready for Phase 3)
-- [ ] No raw email body stored in the DB
-- [ ] Non-receipt emails never produce a DB row
+- [x] `receipts` rows have `parsed_at = NULL` (ready for Phase 3)
+- [x] No raw email body stored in the DB
+- [x] Non-receipt emails never produce a DB row
 
 ---
 
 ## Key Deliverables
 
-- [ ] `lib/gmail.ts` — Gmail client with token refresh
-- [ ] `lib/receiptDetector.ts` — domain filter (with unit tests)
-- [ ] `lib/gmailScanner.ts` — full scan pipeline
-- [ ] `app/api/receipts/scan/route.ts` — POST scan endpoint
-- [ ] `scan_state` table tracking last scan per user
+- [x] `lib/gmail.ts` — Gmail client with token refresh
+- [x] `lib/receiptDetector.ts` — domain filter (with unit tests)
+- [x] `lib/gmailScanner.ts` — full scan pipeline
+- [x] `app/api/receipts/scan/route.ts` — POST scan endpoint
+- [x] `scan_state` table tracking last scan per user
 
 ---
 
 ## Notes & Decisions
 
 <!-- Track decisions made during implementation here -->
+- Live validation of Gmail scans is blocked until valid Google OAuth credentials and an authenticated mailbox with Walmart/Costco receipts are available.
 
 ---
 
 ## Completion Checklist
 
 Before moving to `ai/roadmaps/complete`:
-- [ ] All tasks completed
+- [x] All tasks completed
 - [ ] Success criteria met
-- [ ] Deliverables created
-- [ ] Tests passing
+- [x] Deliverables created
+- [x] Tests passing
 - [ ] Documentation updated
 - [ ] Changelog updated
 

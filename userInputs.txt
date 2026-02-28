@@ -4,3 +4,9 @@ What is needed from user: Provide valid Google OAuth credentials in runway/.env.
 Why blocked: Cannot complete live Google sign-in flow or verify /api/auth/session includes user.email without valid OAuth client credentials.
 Exact next command/file change to resume: Update unway/.env.local with valid Google credentials, then run cd runway; npm run dev and complete sign-in at http://localhost:3000/signin.
 
+Timestamp: 2026-02-28 01:43:38 -07:00
+Task/Stage: Phase 2 - Success Criteria Validation (live Gmail scanning)
+What is needed from user: Valid Google OAuth app credentials in runway/.env.local and a signed-in Google account containing Walmart/Costco receipt emails.
+Why blocked: Live endpoint validation for /api/receipts/scan requires authenticated Gmail API access to real mailbox data.
+Exact next command/file change to resume: Update unway/.env.local, run cd runway; npm run dev, sign in at /signin, then POST to /api/receipts/scan.
+
