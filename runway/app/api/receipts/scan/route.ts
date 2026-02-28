@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { authOptions } from "@/lib/auth";
 import { scanGmail } from "@/lib/gmailScanner";
+import { processUnparsedReceipts } from "@/lib/parseQueue";
 
 export async function POST() {
   const session = await getServerSession(authOptions);
@@ -18,11 +19,23 @@ export async function POST() {
     );
   }
 
-  const result = await scanGmail(
+  const scanResult = await scanGmail(
     session.user.email,
     session.accessToken,
     session.refreshToken
   );
 
-  return NextResponse.json(result);
+  const parseResult = await processUnparsedReceipts(
+    session.user.email,
+    session.accessToken,
+    session.refreshToken
+  );
+
+  return NextResponse.json({
+    scanned: scanResult.scanned,
+    new: scanResult.new,
+    skipped: scanResult.skipped,
+    parsed: parseResult.processed,
+    parseFailed: parseResult.failed,
+  });
 }
