@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { seedBudgetFromDefaults } from "@/lib/budgets";
 
 export async function GET(): Promise<NextResponse> {
   const session = await getServerSession(authOptions);
@@ -10,6 +11,9 @@ export async function GET(): Promise<NextResponse> {
   }
 
   const userId = session.user.email;
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  seedBudgetFromDefaults(userId, currentMonth);
+
   const budgets = db
     .prepare("SELECT * FROM budgets WHERE user_id = ? ORDER BY category")
     .all(userId);

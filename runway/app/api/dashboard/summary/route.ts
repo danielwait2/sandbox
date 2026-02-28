@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { seedBudgetFromDefaults } from "@/lib/budgets";
+import { backfillPriceHistoryIfEmpty } from "@/lib/backfillPriceHistory";
 
 const DEFAULT_CATEGORIES = [
   "Groceries",
@@ -56,6 +58,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { startDate, endDate } = getDateRange(period);
   const startMonth = startDate.slice(0, 7);
 
+  seedBudgetFromDefaults(userId, startMonth);
+  backfillPriceHistoryIfEmpty(userId);
+
   type CategoryRow = { category: string; spend: number; item_count: number };
   const categoryRows = db
     .prepare(
@@ -73,16 +78,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
        WHERE user_id = ? AND transaction_date >= ? AND transaction_date <= ?`
     )
     .get(userId, startDate, endDate) as CountRow;
-
-  type FreqRow = { name: string; c: number };
-  const freqRow = db
-    .prepare(
-      `SELECT li.name, COUNT(*) as c
-       FROM line_items li JOIN receipts r ON li.receipt_id = r.id
-       WHERE r.user_id = ? AND r.transaction_date >= ? AND r.transaction_date <= ?
-       GROUP BY li.name ORDER BY c DESC LIMIT 1`
-    )
-    .get(userId, startDate, endDate) as FreqRow | undefined;
 
   type BudgetRow = { category: string; amount: number };
   const budgetRows = db
@@ -125,7 +120,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     totalSpend,
     receiptCount,
     topCategory: receiptCount > 0 ? topCategory : "",
-    mostFrequentItem: freqRow?.name ?? "",
     categories,
   });
 }
