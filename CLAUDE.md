@@ -61,6 +61,27 @@ After completing a task, immediately update the roadmap doc before committing:
 - If a build or type error is introduced, fix it before moving on — do not leave broken state in `main`
 - Never skip a task — if a task cannot be completed, leave it unchecked and add a note in the roadmap's **Notes & Decisions** section, then continue with the next task
 
+### Handling Blocked Tasks & User Input
+
+If a task is blocked (missing API key, missing credential, missing env var, or any other external dependency):
+
+1. Append the blocked item to `ai/todos/blocked.md` in this format:
+   ```
+   - [ ] [Phase N] <what is needed> — <why it's needed> — added <date>
+   ```
+2. Add a placeholder or stub so the code still compiles (e.g. `process.env.GEMINI_API_KEY ?? ''`)
+3. Leave a `TODO:` comment at the exact line where the real value is needed
+4. Continue to the next task immediately — do not wait or pause
+
+If a human sends a message or provides input during execution:
+
+1. Read it and determine if it is actionable
+2. If actionable, append it to `ai/todos/blocked.md` as a new item
+3. Do not stop or wait for further clarification — continue executing the current task
+4. The human can review `ai/todos/blocked.md` at any time to see what needs their attention
+
+`ai/todos/blocked.md` is the single handoff point between the agent and humans. Check it at the start of each phase — if any blocked items from a prior phase are now unblocked (e.g. an API key was added), resolve them before starting new tasks.
+
 ---
 
 ## Workflow Rules
