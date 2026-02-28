@@ -104,7 +104,7 @@ export const scanGmail = async (
     process.env.NODE_ENV !== "production"
       ? Array.from(new Set([userId.toLowerCase(), ...getConfiguredDevEmails()]))
       : [];
-  const fromSources = ["walmart.com", "costco.com", ...devSenders];
+  const fromSources = ["walmart.com", "costco.com", "samsclub.com", "info.samsclub.com", ...devSenders];
   const fromClause = `(${fromSources.join(" OR ")})`;
   const query = `from:${fromClause} after:${afterEpoch}`;
   console.log(`[gmailScanner] query: ${query}`);
