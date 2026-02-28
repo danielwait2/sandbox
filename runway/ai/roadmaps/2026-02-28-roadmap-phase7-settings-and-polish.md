@@ -1,11 +1,11 @@
 # Phase 7: Settings & Polish
 
-**Status:** Not Started
+**Status:** In Progress
 **Last Updated:** 2026-02-28
 
 ## Tasks
 
-- [ ] Task 1: DELETE /api/auth/disconnect
+- [x] Task 1: DELETE /api/auth/disconnect
 - [ ] Task 2: GET/POST /api/rules
 - [ ] Task 3: DELETE /api/rules/[id]
 - [ ] Task 4: GET /api/items/export (CSV)
