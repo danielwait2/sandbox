@@ -87,7 +87,28 @@ const seedDefaultCategories = (db: Database.Database): void => {
   insertMany(defaultCategories);
 };
 
+const addColumnIfMissing = (
+  db: Database.Database,
+  table: string,
+  column: string,
+  definition: string
+): void => {
+  const cols = db.pragma(`table_info(${table})`) as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+};
+
 export const runMigrations = (db: Database.Database): void => {
   db.exec(schemaSql);
+
+  addColumnIfMissing(db, "budgets", "user_id", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, "rules", "user_id", "TEXT NOT NULL DEFAULT ''");
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_user_date ON receipts(user_id, transaction_date);
+    CREATE INDEX IF NOT EXISTS idx_line_items_receipt_id ON line_items(receipt_id);
+  `);
+
   seedDefaultCategories(db);
 };

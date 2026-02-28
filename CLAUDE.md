@@ -23,6 +23,19 @@ Read `aiDocs/context.md` before responding to any task in this project. It conta
 
 ---
 
+## Subagent Delegation
+
+When executing phases or tasks, you are authorized to spin up subagents (via the Task tool) to implement plans in parallel or in isolation. Follow these rules:
+
+- **Permission:** Subagents are authorized to read files, write/edit files within this repo, install npm packages, and run git commands (commit, push). They must not run destructive shell commands (rm -rf, git reset --hard, force push, etc.) without explicit user approval.
+- **When to delegate:** Spin up a subagent for any self-contained task or phase that can be described with a clear input and expected output (e.g. "implement the GET /api/items route as described in phase-4 roadmap").
+- **What to pass:** Give each subagent the task description, relevant file paths, success criteria, and a reference to `CLAUDE.md` and `aiDocs/context.md`. Do not make the subagent re-read the entire roadmap — scope it tightly.
+- **Isolation:** Prefer `isolation: "worktree"` when a subagent is writing significant new code, so changes can be reviewed before merging. For small, clearly scoped tasks, inline execution is fine.
+- **Commit & push:** Subagents follow the same commit/push rules as the main agent — commit after each task, push to `main` immediately.
+- **Blocked tasks:** If a subagent hits a blocker, it should append to `ai/todos/blocked.md` and return a summary of what was completed and what was blocked.
+
+---
+
 ## Autonomous Execution Mode
 
 This project is designed to be executed autonomously by an AI agent with no human input required. Follow these rules exactly:
