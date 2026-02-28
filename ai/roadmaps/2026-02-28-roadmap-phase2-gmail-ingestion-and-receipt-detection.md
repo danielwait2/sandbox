@@ -33,7 +33,7 @@ Use the user's Gmail OAuth token to fetch emails, filter to Walmart and Costco r
 - [x] `lib/receiptDetector.ts` — pure `isReceiptEmail(from)` function (no I/O, unit-testable)
 
 ### Scanner
-- [ ] `lib/gmailScanner.ts` — Gmail query, message list, deduplication, body fetch, receipt insert
+- [x] `lib/gmailScanner.ts` — Gmail query, message list, deduplication, body fetch, receipt insert
 - [ ] `lib/migrations.ts` — add `scan_state (user_id, last_scanned_at)` table
 - [ ] Store and update `last_scanned_at` per user after each scan
 

@@ -1,0 +1,135 @@
+import { v4 as uuidv4 } from "uuid";
+
+import { db } from "@/lib/db";
+import { createGmailClient } from "@/lib/gmail";
+import { isReceiptEmail } from "@/lib/receiptDetector";
+
+export type ScanResult = {
+  scanned: number;
+  new: number;
+  skipped: number;
+};
+
+const DAYS_90_IN_SECONDS = 90 * 24 * 60 * 60;
+
+const getHeaderValue = (
+  headers: { name?: string | null; value?: string | null }[] | undefined,
+  targetHeader: string
+): string => {
+  if (!headers) {
+    return "";
+  }
+
+  const match = headers.find(
+    (header) => header.name?.toLowerCase() === targetHeader.toLowerCase()
+  );
+
+  return match?.value ?? "";
+};
+
+const toIsoDate = (rawDate: string): string => {
+  const date = rawDate ? new Date(rawDate) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  return date.toISOString().slice(0, 10);
+};
+
+export const scanGmail = async (
+  userId: string,
+  accessToken: string,
+  refreshToken: string
+): Promise<ScanResult> => {
+  const { gmail } = await createGmailClient({ accessToken, refreshToken });
+
+  const afterEpoch = Math.floor(Date.now() / 1000) - DAYS_90_IN_SECONDS;
+  const query = `from:(walmart.com OR costco.com) after:${afterEpoch}`;
+
+  const listResponse = await gmail.users.messages.list({
+    userId: "me",
+    q: query,
+    maxResults: 200,
+  });
+
+  const messages = listResponse.data.messages ?? [];
+
+  const findExistingReceipt = db.prepare(
+    "SELECT id FROM receipts WHERE user_id = ? AND raw_email_id = ? LIMIT 1"
+  );
+
+  const insertReceipt = db.prepare(
+    `INSERT INTO receipts (
+      id,
+      user_id,
+      retailer,
+      transaction_date,
+      subtotal,
+      tax,
+      total,
+      order_number,
+      raw_email_id,
+      parsed_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+
+  let scanned = 0;
+  let newCount = 0;
+  let skipped = 0;
+
+  for (const message of messages) {
+    if (!message.id) {
+      continue;
+    }
+
+    scanned += 1;
+
+    const existing = findExistingReceipt.get(userId, message.id) as
+      | { id: string }
+      | undefined;
+
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+
+    const messageResponse = await gmail.users.messages.get({
+      userId: "me",
+      id: message.id,
+      format: "full",
+    });
+
+    const headers = messageResponse.data.payload?.headers;
+    const from = getHeaderValue(headers, "From");
+    const date = getHeaderValue(headers, "Date");
+
+    const detection = isReceiptEmail(from);
+
+    if (!detection.isReceipt || !detection.retailer) {
+      skipped += 1;
+      continue;
+    }
+
+    insertReceipt.run(
+      uuidv4(),
+      userId,
+      detection.retailer,
+      toIsoDate(date),
+      null,
+      null,
+      0,
+      null,
+      message.id,
+      null
+    );
+
+    newCount += 1;
+  }
+
+  return {
+    scanned,
+    new: newCount,
+    skipped,
+  };
+};
