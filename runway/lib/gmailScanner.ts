@@ -37,6 +37,32 @@ const toIsoDate = (rawDate: string): string => {
   return date.toISOString().slice(0, 10);
 };
 
+const getAfterEpoch = (userId: string): number => {
+  const scanState = db
+    .prepare("SELECT last_scanned_at FROM scan_state WHERE user_id = ?")
+    .get(userId) as { last_scanned_at: string } | undefined;
+
+  if (!scanState?.last_scanned_at) {
+    return Math.floor(Date.now() / 1000) - DAYS_90_IN_SECONDS;
+  }
+
+  const parsed = new Date(scanState.last_scanned_at);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return Math.floor(Date.now() / 1000) - DAYS_90_IN_SECONDS;
+  }
+
+  return Math.floor(parsed.getTime() / 1000);
+};
+
+const persistScanState = (userId: string): void => {
+  db.prepare(
+    `INSERT INTO scan_state (user_id, last_scanned_at)
+     VALUES (?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET last_scanned_at = excluded.last_scanned_at`
+  ).run(userId, new Date().toISOString());
+};
+
 export const scanGmail = async (
   userId: string,
   accessToken: string,
@@ -44,7 +70,7 @@ export const scanGmail = async (
 ): Promise<ScanResult> => {
   const { gmail } = await createGmailClient({ accessToken, refreshToken });
 
-  const afterEpoch = Math.floor(Date.now() / 1000) - DAYS_90_IN_SECONDS;
+  const afterEpoch = getAfterEpoch(userId);
   const query = `from:(walmart.com OR costco.com) after:${afterEpoch}`;
 
   const listResponse = await gmail.users.messages.list({
@@ -126,6 +152,8 @@ export const scanGmail = async (
 
     newCount += 1;
   }
+
+  persistScanState(userId);
 
   return {
     scanned,
