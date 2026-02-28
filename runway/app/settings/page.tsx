@@ -352,17 +352,33 @@ export default function SettingsPage() {
       {/* Section 5: Danger Zone */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-red-600">Danger Zone</h2>
-        <div className="rounded-xl border border-red-200 bg-white p-5 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-zinc-900">Delete Account</p>
-            <p className="text-sm text-zinc-500">Permanently wipe all your data.</p>
+        <div className="rounded-xl border border-red-200 bg-white divide-y divide-red-100">
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <p className="font-medium text-zinc-900">Reset Scan Window</p>
+              <p className="text-sm text-zinc-500">Forces the next scan to re-fetch the full 90-day window.</p>
+            </div>
+            <button
+              className="bg-zinc-100 text-zinc-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200"
+              onClick={async () => {
+                await fetch('/api/scan-state', { method: 'DELETE' });
+              }}
+            >
+              Reset Scan Window
+            </button>
           </div>
-          <button
-            className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700"
-            onClick={() => setShowDeleteModal(true)}
-          >
-            Delete Account
-          </button>
+          <div className="p-5 flex items-center justify-between">
+            <div>
+              <p className="font-medium text-zinc-900">Delete Account</p>
+              <p className="text-sm text-zinc-500">Permanently wipe all your data.</p>
+            </div>
+            <button
+              className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700"
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Delete Account
+            </button>
+          </div>
         </div>
       </section>
 
