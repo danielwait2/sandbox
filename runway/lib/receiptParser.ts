@@ -110,7 +110,8 @@ export const persistParsedReceipt = (
 
   const updateReceipt = db.prepare(`
     UPDATE receipts
-    SET transaction_date = ?,
+    SET retailer = ?,
+        transaction_date = ?,
         order_number = ?,
         subtotal = ?,
         tax = ?,
@@ -127,6 +128,7 @@ export const persistParsedReceipt = (
 
   const transaction = db.transaction(() => {
     updateReceipt.run(
+      parsed.retailer.name,
       parsed.transaction.date,
       parsed.transaction.order_number ?? null,
       parsed.transaction.subtotal ?? null,

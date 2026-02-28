@@ -185,14 +185,15 @@ export const scanGmail = async (
 
     const detection = isReceiptEmail(from);
 
-    if (!detection.isReceipt || !detection.retailer) {
+    if (!detection.isReceipt) {
       skipped += 1;
       continue;
     }
 
+    const retailer = detection.retailer ?? "Unknown";
     const isoDate = toIsoDate(date);
     const dedupeHash = buildDedupeHash({
-      retailer: detection.retailer,
+      retailer,
       dateIso: isoDate,
       subject,
       snippet: messageResponse.data.snippet ?? "",
@@ -218,7 +219,7 @@ export const scanGmail = async (
       userId,
       context.accountId,
       userId,
-      detection.retailer,
+      retailer,
       isoDate,
       null,
       null,

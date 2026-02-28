@@ -22,9 +22,9 @@ export const isReceiptEmail = (from: string): ReceiptDetectionResult => {
     return { isReceipt: true, retailer: "Sams Club" };
   }
 
-  // DEV ONLY: treat emails from your own address as Walmart receipts for testing
+  // DEV ONLY: treat emails from your own address as receipts; retailer resolved by parser
   if (process.env.NODE_ENV !== "production" && isConfiguredDevEmailSender(normalizedFrom)) {
-    return { isReceipt: true, retailer: "Walmart" };
+    return { isReceipt: true, retailer: null };
   }
 
   return { isReceipt: false, retailer: null };
