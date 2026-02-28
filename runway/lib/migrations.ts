@@ -49,6 +49,23 @@ CREATE TABLE IF NOT EXISTS scan_state (
   user_id TEXT PRIMARY KEY,
   last_scanned_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS budget_defaults (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     TEXT    NOT NULL,
+  category    TEXT    NOT NULL,
+  amount      REAL    NOT NULL,
+  UNIQUE(user_id, category)
+);
+
+CREATE TABLE IF NOT EXISTS price_history (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id              TEXT    NOT NULL,
+  item_name_normalized TEXT    NOT NULL,
+  unit_price           REAL    NOT NULL,
+  retailer             TEXT    NOT NULL,
+  date                 TEXT    NOT NULL
+);
 `;
 
 const defaultCategories = [
@@ -108,6 +125,7 @@ export const runMigrations = (db: Database.Database): void => {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_receipts_user_date ON receipts(user_id, transaction_date);
     CREATE INDEX IF NOT EXISTS idx_line_items_receipt_id ON line_items(receipt_id);
+    CREATE INDEX IF NOT EXISTS idx_price_history_user_item ON price_history(user_id, item_name_normalized);
   `);
 
   seedDefaultCategories(db);
