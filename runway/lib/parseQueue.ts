@@ -63,41 +63,45 @@ export const processUnparsedReceipts = async (
   let processed = 0;
   let failed = 0;
 
-  for (const row of rows) {
-    try {
-      const messageResponse = await gmail.users.messages.get({
-        userId: "me",
-        id: row.raw_email_id,
-        format: "full",
-      });
+  const CONCURRENCY = 5;
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const batch = rows.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(async (row) => {
+        try {
+          const messageResponse = await gmail.users.messages.get({
+            userId: "me",
+            id: row.raw_email_id,
+            format: "full",
+          });
 
-      const emailBody = extractBody(messageResponse.data.payload);
+          const emailBody = extractBody(messageResponse.data.payload);
 
-      if (!emailBody) {
-        console.error("[parseQueue] Empty email body for", row.raw_email_id);
-        failed += 1;
-        continue;
-      }
+          if (!emailBody) {
+            console.error("[parseQueue] Empty email body for", row.raw_email_id);
+            failed += 1;
+            return;
+          }
 
-      const parsed = await parseReceipt(emailBody);
+          const parsed = await parseReceipt(emailBody);
 
-      if (!parsed) {
-        // Mark as processed so it isn't re-queued on future scans.
-        // No items will be inserted, so it stays invisible in the UI (filtered by HAVING COUNT > 0).
-        db.prepare("UPDATE receipts SET parsed_at = ? WHERE id = ?").run(
-          new Date().toISOString(),
-          row.id
-        );
-        failed += 1;
-        continue;
-      }
+          if (!parsed) {
+            db.prepare("UPDATE receipts SET parsed_at = ? WHERE id = ?").run(
+              new Date().toISOString(),
+              row.id
+            );
+            failed += 1;
+            return;
+          }
 
-      persistParsedReceipt(row.id, parsed, userId);
-      processed += 1;
-    } catch (err) {
-      console.error("[parseQueue] Failed for receipt", row.id, err);
-      failed += 1;
-    }
+          persistParsedReceipt(row.id, parsed, userId);
+          processed += 1;
+        } catch (err) {
+          console.error("[parseQueue] Failed for receipt", row.id, err);
+          failed += 1;
+        }
+      })
+    );
   }
 
   return { processed, failed };

@@ -95,24 +95,24 @@ export const categorizeItems = async (
 
   type Resolved = { id: number; category: string; subcategory: string | null; confidence: number };
 
-  const BATCH = 50;
+  const BATCH = 10;
   for (let i = 0; i < items.length; i += BATCH) {
     const batch = items.slice(i, i + BATCH);
 
-    // Resolve categories outside the transaction (async Gemini calls)
-    const resolved: Resolved[] = [];
-    for (const item of batch) {
-      const ruleMatch = applyRules(item.name);
-      if (ruleMatch) {
-        resolved.push({ id: item.id, category: ruleMatch.category, subcategory: ruleMatch.subcategory, confidence: 1.0 });
-        rulesHit++;
-      } else {
+    // Resolve categories in parallel (async Gemini calls)
+    const resolved: Resolved[] = await Promise.all(
+      batch.map(async (item) => {
+        const ruleMatch = applyRules(item.name);
+        if (ruleMatch) {
+          rulesHit++;
+          return { id: item.id, category: ruleMatch.category, subcategory: ruleMatch.subcategory, confidence: 1.0 };
+        }
         const r = await categorizeWithGemini(item.name);
-        resolved.push({ id: item.id, ...r });
         llmUsed++;
         if (r.confidence < 0.4) reviewQueue++;
-      }
-    }
+        return { id: item.id, ...r };
+      })
+    );
 
     // Persist in a synchronous transaction
     db.transaction(() => {
