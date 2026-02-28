@@ -16,10 +16,25 @@ type CategoryData = {
 
 type SummaryData = {
   period: string;
+  contributor?: 'all' | 'owner' | 'member';
   totalSpend: number;
   receiptCount: number;
   topCategory: string;
   categories: CategoryData[];
+};
+
+type ContributorFilter = 'all' | 'owner' | 'member';
+type AccountMember = { userId: string; role: 'owner' | 'member'; status: 'pending' | 'active' | 'removed' };
+type MembersResponse = { members: AccountMember[] };
+
+const formatUserLabel = (userId: string | null): string => {
+  if (!userId) return 'Member';
+  const local = userId.split('@')[0] ?? userId;
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ');
 };
 
 function ScanButton({ onComplete }: { onComplete: () => void }) {
@@ -74,15 +89,18 @@ function SkeletonCard() {
 export default function DashboardPage() {
   const router = useRouter();
   const [period, setPeriod] = useState('this_month');
+  const [contributor, setContributor] = useState<ContributorFilter>('all');
   const [data, setData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewCount, setReviewCount] = useState(0);
+  const [ownerLabel, setOwnerLabel] = useState('Owner');
+  const [memberLabel, setMemberLabel] = useState('Member');
 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
-  const fetchSummary = async (p: string) => {
+  const fetchSummary = async (p: string, c: ContributorFilter) => {
     setLoading(true);
-    const res = await fetch(`/api/dashboard/summary?period=${p}`);
+    const res = await fetch(`/api/dashboard/summary?period=${p}&contributor=${c}`);
     if (res.ok) {
       const json = (await res.json()) as SummaryData;
       setData(json);
@@ -91,12 +109,21 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    void fetchSummary(period);
+    void fetchSummary(period, contributor);
+    fetch('/api/account/members')
+      .then((r) => r.json())
+      .then((j: MembersResponse) => {
+        const owner = j.members?.find((m) => m.role === 'owner');
+        const member = j.members?.find((m) => m.role === 'member' && m.status !== 'removed');
+        setOwnerLabel(formatUserLabel(owner?.userId ?? null));
+        setMemberLabel(formatUserLabel(member?.userId ?? null));
+      })
+      .catch(() => {});
     fetch('/api/review-queue')
       .then((r) => r.json())
       .then((j: { count: number }) => setReviewCount(j.count ?? 0))
       .catch(() => {});
-  }, [period]);
+  }, [period, contributor]);
 
   const handlePeriodChange = (p: string) => {
     setPeriod(p);
@@ -108,7 +135,7 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category: categoryName, month: currentMonth, amount }),
     });
-    await fetchSummary(period);
+    await fetchSummary(period, contributor);
   };
 
   return (
@@ -116,7 +143,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
         <div className="flex items-center gap-3">
-        <ScanButton onComplete={() => fetchSummary(period)} />
+        <ScanButton onComplete={() => fetchSummary(period, contributor)} />
         {reviewCount > 0 && (
           <a
             href="/review-queue"
@@ -129,6 +156,25 @@ export default function DashboardPage() {
       </div>
 
       <PeriodToggle period={period} onChange={handlePeriodChange} />
+      <div className="border-b border-zinc-200">
+        {[
+          { key: 'all', label: 'All Contributors' },
+          { key: 'owner', label: ownerLabel },
+          { key: 'member', label: memberLabel },
+        ].map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => setContributor(opt.key as ContributorFilter)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
+              contributor === opt.key
+                ? 'border-zinc-900 text-zinc-900'
+                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <>
@@ -151,7 +197,7 @@ export default function DashboardPage() {
               <p className="text-zinc-600 text-lg mb-4">
                 Connect Gmail and pull your receipts to get started
               </p>
-              <ScanButton onComplete={() => fetchSummary(period)} />
+              <ScanButton onComplete={() => fetchSummary(period, contributor)} />
             </div>
           ) : (
             <>

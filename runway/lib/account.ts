@@ -169,7 +169,7 @@ export function buildReceiptContributorClause(
 
   const placeholders = contributorUserIds.map(() => "?").join(", ");
   return {
-    whereSql: `${alias}.user_id IN (${placeholders})`,
-    params: contributorUserIds,
+    whereSql: `(${alias}.contributor_user_id IN (${placeholders}) OR (${alias}.contributor_user_id IS NULL AND ${alias}.user_id IN (${placeholders})))`,
+    params: [...contributorUserIds, ...contributorUserIds],
   };
 }

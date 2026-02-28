@@ -13,6 +13,13 @@ export type ScanResult = {
   skipped: number;
 };
 
+type ScanDependencies = {
+  createClient?: typeof createGmailClient;
+  detectReceipt?: typeof isReceiptEmail;
+  generateId?: () => string;
+  now?: () => Date;
+};
+
 const DAYS_90_IN_SECONDS = 90 * 24 * 60 * 60;
 
 const getHeaderValue = (
@@ -79,25 +86,20 @@ const getAfterEpoch = (userId: string): number => {
   return Math.floor(parsed.getTime() / 1000);
 };
 
-const persistScanState = (userId: string, mailboxConnectionId: number): void => {
-  db.prepare(
-    `INSERT INTO scan_state (user_id, provider, mailbox_connection_id, last_scanned_at)
-     VALUES (?, 'google', ?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET
-       provider = 'google',
-       mailbox_connection_id = excluded.mailbox_connection_id,
-       last_scanned_at = excluded.last_scanned_at`
-  ).run(userId, mailboxConnectionId, new Date().toISOString());
-};
-
 export const scanGmail = async (
   context: AccountContext,
   accessToken: string,
   refreshToken: string,
-  mailboxConnectionId: number
+  mailboxConnectionId: number,
+  deps: ScanDependencies = {}
 ): Promise<ScanResult> => {
   const userId = context.viewerUserId;
-  const { gmail } = await createGmailClient({ accessToken, refreshToken });
+  const createClient = deps.createClient ?? createGmailClient;
+  const detectReceipt = deps.detectReceipt ?? isReceiptEmail;
+  const generateId = deps.generateId ?? uuidv4;
+  const now = deps.now ?? (() => new Date());
+
+  const { gmail } = await createClient({ accessToken, refreshToken });
 
   const afterEpoch = getAfterEpoch(userId);
   const devSenders =
@@ -183,7 +185,7 @@ export const scanGmail = async (
     const date = getHeaderValue(headers, "Date");
     const subject = getHeaderValue(headers, "Subject");
 
-    const detection = isReceiptEmail(from);
+    const detection = detectReceipt(from);
 
     if (!detection.isReceipt) {
       skipped += 1;
@@ -215,7 +217,7 @@ export const scanGmail = async (
     }
 
     insertReceipt.run(
-      uuidv4(),
+      generateId(),
       userId,
       context.accountId,
       userId,
@@ -233,7 +235,14 @@ export const scanGmail = async (
     newCount += 1;
   }
 
-  persistScanState(userId, mailboxConnectionId);
+  db.prepare(
+    `INSERT INTO scan_state (user_id, provider, mailbox_connection_id, last_scanned_at)
+     VALUES (?, 'google', ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       provider = 'google',
+       mailbox_connection_id = excluded.mailbox_connection_id,
+       last_scanned_at = excluded.last_scanned_at`
+  ).run(userId, mailboxConnectionId, now().toISOString());
 
   return {
     scanned,

@@ -25,6 +25,7 @@ type LineItem = {
 type Receipt = {
   id: string;
   user_id: string;
+  contributor_user_id: string | null;
   retailer: string;
   transaction_date: string;
   subtotal: number | null;
@@ -54,7 +55,12 @@ export async function GET(
   const scope = buildReceiptContributorClause("receipts", contributorUserIds);
 
   const receipt = db
-    .prepare(`SELECT * FROM receipts WHERE id = ? AND ${scope.whereSql}`)
+    .prepare(
+      `SELECT receipts.*,
+              COALESCE(receipts.contributor_user_id, receipts.user_id) AS contributor_user_id
+       FROM receipts
+       WHERE id = ? AND ${scope.whereSql}`
+    )
     .get(id, ...scope.params) as Receipt | undefined;
 
   if (!receipt) {
@@ -65,5 +71,13 @@ export async function GET(
     .prepare("SELECT * FROM line_items WHERE receipt_id = ?")
     .all(id) as LineItem[];
 
-  return NextResponse.json({ ...receipt, items });
+  return NextResponse.json({
+    ...receipt,
+    contributor_user_id: receipt.contributor_user_id ?? receipt.user_id,
+    contributor_role:
+      (receipt.contributor_user_id ?? receipt.user_id) === context.ownerUserId
+        ? "owner"
+        : "member",
+    items,
+  });
 }

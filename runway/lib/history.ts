@@ -149,7 +149,8 @@ export function getReceiptsForMonth(
 
   const receipts = db
     .prepare(
-      `SELECT id, retailer, transaction_date, total, order_number, user_id as contributor_user_id
+      `SELECT id, retailer, transaction_date, total, order_number,
+              COALESCE(contributor_user_id, user_id) as contributor_user_id
        FROM receipts
        WHERE ${scope.whereSql} AND strftime('%Y-%m', transaction_date) = ?
        ORDER BY transaction_date DESC`

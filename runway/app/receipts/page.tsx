@@ -13,6 +13,8 @@ type ReceiptSummary = {
   total: number;
   order_number: string | null;
   item_count: number;
+  contributor_user_id: string;
+  contributor_role: 'owner' | 'member';
 };
 
 function formatUSD(n: number) {
@@ -133,6 +135,9 @@ export default function ReceiptsPage() {
                   <p className="text-sm text-zinc-500">
                     {formatDate(receipt.transaction_date)} &middot; {receipt.item_count} item{receipt.item_count !== 1 ? 's' : ''}
                     {receipt.order_number && <span> &middot; #{receipt.order_number}</span>}
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Found in: {receipt.contributor_user_id}
                   </p>
                 </div>
                 <p className="font-semibold text-zinc-900">{formatUSD(receipt.total)}</p>
