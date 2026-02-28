@@ -11,7 +11,7 @@ The app is currently single-user and keys data by user email (`user_id`). Househ
 ### Goals
 1. Owner can add/remove one member by email from Settings.
 2. Owner and member can each connect Gmail and ingest receipts into one shared account.
-3. Dashboard/reporting shows unified totals across all account receipts by default.
+3. Dashboard, Insights, and History show unified account totals for both owner and member by default.
 4. Permissions, auditability, and data ownership are explicit and enforceable.
 
 ### Non-Goals (v1)
@@ -39,7 +39,7 @@ The app is currently single-user and keys data by user email (`user_id`). Househ
 4. Both users can connect/disconnect Gmail independently.
 5. Manual scan runs against caller's own Gmail tokens only.
 6. New receipts are stored under shared `account_id` and attributed to `contributor_user_id`.
-7. All dashboard totals default to account-wide aggregation.
+7. All analytics/reporting surfaces default to account-wide aggregation for both owner and member.
 8. Filters allow optional contributor breakdown (owner/member/all).
 9. Owner can remove member.
 10. Removed member immediately loses access.
@@ -68,6 +68,12 @@ The app is currently single-user and keys data by user email (`user_id`). Househ
 - Attempt to add self email.
 - Added email not yet registered/logged in.
 - Remove action includes warning that historical receipts are retained.
+
+### Analytics UX requirements (shared scope)
+1. `Dashboard`, `Insights`, and `History` must render the same account-scoped totals for owner and member when using identical date/filter inputs.
+2. Default view is `Contributor = all` to show shared-account totals.
+3. Optional contributor filter (`all`, `owner`, `member`) is available on analytics screens where filtering is supported.
+4. History drill-down views continue to show receipts attributed to contributors while remaining account-scoped by default.
 
 ## 6. Data Model Changes (accounts, members, receipts ownership, aggregation)
 ### Important public interfaces/types changes
@@ -106,7 +112,11 @@ The app is currently single-user and keys data by user email (`user_id`). Househ
 | `/api/mailbox/connect` | POST | owner/member | Start/connect own Gmail OAuth |
 | `/api/mailbox/disconnect` | DELETE | owner/member | Disconnect own mailbox only |
 | `/api/receipts/scan` | POST | owner/member | Scan caller mailbox, write receipts to caller account |
-| Existing reporting endpoints | GET | owner/member | Aggregate by `account_id`; optional `contributor` filter |
+| `/api/dashboard/summary` | GET | owner/member | Aggregate by `account_id` by default; optional `contributor` filter |
+| `/api/insights` | GET | owner/member | Aggregate by `account_id` by default; optional `contributor` filter |
+| `/api/insights/tips` | POST | owner/member | Generate tips from account-scoped insights by default; optional `contributor` filter |
+| `/api/history` | GET | owner/member | Aggregate by `account_id` by default; optional `contributor` filter |
+| `/api/history/:month` | GET | owner/member | Return account-scoped monthly receipts; optional contributor-based narrowing |
 
 ### Backend processing requirements
 - Wrap membership writes in transactions.
@@ -144,18 +154,22 @@ The app is currently single-user and keys data by user email (`user_id`). Househ
 7. Retain audit logs for minimum compliance window (e.g., 12 months).
 
 ## 10. Analytics and Reporting Requirements (combined totals and filters)
-1. Default totals are account-wide (`all contributors`).
+1. Default totals are account-wide (`all contributors`) for both owner and member.
 2. Filters:
 - Date period
 - Contributor: `all`, `owner`, `member`
 - Retailer/category (existing behavior retained)
-3. Dashboard cards:
+3. Shared-account scope applies to all implemented analytics surfaces:
+- Dashboard summary cards/charts
+- Insights metrics and AI tips context
+- History summary, charts, and month drill-down
+4. Dashboard cards:
 - Total spend
 - Receipt count
 - Top category
 - Most frequent item
-4. Include contributor attribution in receipt detail views.
-5. CSV export includes `contributor_email` and `account_id`.
+5. Include contributor attribution in receipt detail views.
+6. CSV export includes `contributor_email` and `account_id`.
 
 ### Total computation rule
 `Unified total = SUM(line_items.total_price) for receipts WHERE receipts.account_id = current_account AND date range/filter matches`
@@ -186,6 +200,8 @@ The app is currently single-user and keys data by user email (`user_id`). Househ
 4. Reporting trust: decrease in "missing receipt" support issues.
 5. Reliability: scan failure rate per mailbox connection.
 6. Security: zero unauthorized cross-account access incidents.
+7. Analytics parity: when owner and member use same account/date/filter settings, totals match across Dashboard, Insights, and History.
+8. Contributor filter adoption: `% of shared accounts using contributor filter at least once per month`.
 
 ## 13. Rollout Plan (phased release + migration strategy)
 ### Phase 0: Schema + compatibility
@@ -227,12 +243,14 @@ The app is currently single-user and keys data by user email (`user_id`). Househ
 4. Member cannot call add/remove member APIs (403).
 5. Scan by owner ingests owner mailbox only; scan by member ingests member mailbox only.
 6. Dashboard totals for both users match account-level aggregation.
-7. Contributor filter changes totals deterministically.
-8. Removing member revokes access immediately.
-9. Removed member's historical receipts remain queryable and included in default totals.
-10. Duplicate receipts across contributors are suppressed per defined dedupe rules.
-11. Audit events exist for add/remove member, connect/disconnect mailbox, scan runs.
-12. Existing single-user accounts are migrated without data loss.
+7. Insights results for both users match account-level aggregation when filters are the same.
+8. History summary and month drill-down for both users match account-level aggregation when filters are the same.
+9. Contributor filter changes totals deterministically across dashboard, insights, and history endpoints.
+10. Removing member revokes access immediately.
+11. Removed member's historical receipts remain queryable and included in default totals.
+12. Duplicate receipts across contributors are suppressed per defined dedupe rules.
+13. Audit events exist for add/remove member, connect/disconnect mailbox, scan runs.
+14. Existing single-user accounts are migrated without data loss.
 
 ## Assumptions and Defaults Chosen
 1. Invitation model: `Auto-Add by Email` (no outbound invite email in v1).

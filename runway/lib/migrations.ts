@@ -49,6 +49,24 @@ CREATE TABLE IF NOT EXISTS scan_state (
   user_id TEXT PRIMARY KEY,
   last_scanned_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS accounts (
+  id TEXT PRIMARY KEY,
+  owner_user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS account_memberships (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+  status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'removed')) DEFAULT 'active',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (account_id, user_id),
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
 `;
 
 const defaultCategories = [
@@ -108,7 +126,59 @@ export const runMigrations = (db: Database.Database): void => {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_receipts_user_date ON receipts(user_id, transaction_date);
     CREATE INDEX IF NOT EXISTS idx_line_items_receipt_id ON line_items(receipt_id);
+    CREATE INDEX IF NOT EXISTS idx_account_memberships_user_status ON account_memberships(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_account_memberships_account_role ON account_memberships(account_id, role);
   `);
 
   seedDefaultCategories(db);
+  backfillAccounts(db);
+};
+
+const makeAccountId = (userId: string): string =>
+  `acct_${Buffer.from(userId).toString("hex").slice(0, 24)}`;
+
+const backfillAccounts = (db: Database.Database): void => {
+  const users = db
+    .prepare(
+      `SELECT DISTINCT user_id FROM (
+          SELECT user_id FROM receipts
+          UNION
+          SELECT user_id FROM budgets
+          UNION
+          SELECT user_id FROM rules
+          UNION
+          SELECT user_id FROM scan_state
+       )
+       WHERE user_id <> ''`
+    )
+    .all() as { user_id: string }[];
+
+  const insert = db.transaction((rows: { user_id: string }[]) => {
+    for (const row of rows) {
+      const membership = db
+        .prepare(
+          `SELECT account_id
+           FROM account_memberships
+           WHERE user_id = ?`
+        )
+        .get(row.user_id) as { account_id: string } | undefined;
+
+      if (membership) continue;
+
+      const accountId = makeAccountId(row.user_id);
+      const now = new Date().toISOString();
+
+      db.prepare(
+        `INSERT OR IGNORE INTO accounts (id, owner_user_id, created_at)
+         VALUES (?, ?, ?)`
+      ).run(accountId, row.user_id, now);
+
+      db.prepare(
+        `INSERT OR IGNORE INTO account_memberships (account_id, user_id, role, status, created_at, updated_at)
+         VALUES (?, ?, 'owner', 'active', ?, ?)`
+      ).run(accountId, row.user_id, now, now);
+    }
+  });
+
+  insert(users);
 };

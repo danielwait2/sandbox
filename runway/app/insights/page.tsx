@@ -20,6 +20,7 @@ type InsightsData = {
   annualized: AnnualizedCategory[];
   bulkBuySuggestions: BulkBuySuggestion[];
 };
+type ContributorFilter = 'all' | 'owner' | 'member';
 
 export default function InsightsPage() {
   const { data: session, status } = useSession();
@@ -27,6 +28,7 @@ export default function InsightsPage() {
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [contributor, setContributor] = useState<ContributorFilter>('all');
   const [tips, setTips] = useState<string[] | null>(null);
   const [tipsLoading, setTipsLoading] = useState(false);
 
@@ -37,11 +39,11 @@ export default function InsightsPage() {
   useEffect(() => {
     if (status !== 'authenticated') return;
     setLoading(true);
-    fetch(`/api/insights?month=${month}`)
+    fetch(`/api/insights?month=${month}&contributor=${contributor}`)
       .then((res) => res.json())
       .then((d) => setData(d as InsightsData))
       .finally(() => setLoading(false));
-  }, [status, month]);
+  }, [status, month, contributor]);
 
   const fetchTips = async () => {
     setTipsLoading(true);
@@ -49,7 +51,7 @@ export default function InsightsPage() {
       const res = await fetch('/api/insights/tips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month }),
+        body: JSON.stringify({ month, contributor }),
       });
       const result = await res.json() as { tips: string[] };
       setTips(result.tips);
@@ -77,6 +79,25 @@ export default function InsightsPage() {
           onChange={(e) => { setMonth(e.target.value); setTips(null); }}
           className="rounded border border-zinc-300 px-3 py-1.5 text-sm"
         />
+      </div>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {[
+          { key: 'all', label: 'All Contributors' },
+          { key: 'owner', label: 'Owner Only' },
+          { key: 'member', label: 'Member Only' },
+        ].map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => { setContributor(opt.key as ContributorFilter); setTips(null); }}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              contributor === opt.key
+                ? 'bg-zinc-900 text-white'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {isEmpty ? (

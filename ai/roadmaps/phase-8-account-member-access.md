@@ -8,7 +8,7 @@
 
 ## Overview
 
-Implement shared account access for receipt scanning so one owner can add one member. Both users connect their own Gmail mailboxes and ingest receipts into a single shared account dataset. Reporting and totals are unified at the account level, with contributor attribution preserved and strict owner/member permission controls enforced.
+Implement shared account access for receipt scanning so one owner can add one member. Both users connect their own Gmail mailboxes and ingest receipts into a single shared account dataset. Reporting and totals are unified at the account level, with contributor attribution preserved and strict owner/member permission controls enforced. Existing analytics surfaces (`dashboard`, `insights`, `history`) must run at shared account scope for both users, with optional contributor filters.
 
 ---
 
@@ -26,8 +26,9 @@ Implement shared account access for receipt scanning so one owner can add one me
 - Member is activated when logging in with matching email.
 - Owner and member can connect/disconnect their own Gmail independently.
 - Scan runs use caller mailbox only and write into shared account.
-- Dashboard totals are account-level by default.
-- Contributor filter (`all`, `owner`, `member`) works consistently across reporting endpoints.
+- Dashboard, insights, and history totals are account-level by default for both owner and member.
+- Contributor filter (`all`, `owner`, `member`) works consistently across reporting/analytics endpoints where filtering is supported.
+- Owner and member see matching analytics results when using identical account/date/filter inputs.
 - Member removal immediately blocks API/data access for removed user.
 - Historical receipts from removed member remain in account totals/history.
 - Account-level duplicate detection suppresses duplicates across contributors.
@@ -105,12 +106,17 @@ Implement shared account access for receipt scanning so one owner can add one me
 8. **Convert reporting/data APIs to account scope**
    - Files:
      - `app/api/dashboard/summary/route.ts`
+     - `app/api/insights/route.ts`
+     - `app/api/insights/tips/route.ts`
+     - `app/api/history/route.ts`
+     - `app/api/history/[month]/route.ts`
      - `app/api/items/route.ts`
      - `app/api/review-queue/route.ts`
      - `app/api/receipts/[id]/route.ts`
      - `app/api/items/export/route.ts`
    - Replace `user_id` filters with `account_id`.
    - Add contributor filter support where appropriate.
+   - Ensure analytics parity for owner/member on dashboard, insights, and history for identical filters.
    - Include contributor identity in detail/export payloads.
 
 9. **Implement duplicate detection and suppression**
@@ -190,12 +196,14 @@ runway/
 4. Owner scan imports only owner mailbox messages.
 5. Member scan imports only member mailbox messages.
 6. Dashboard totals match account-wide line-item sum for selected period.
-7. Contributor filter returns expected subsets and totals.
-8. Remove member:
+7. Insights data and generated tips are based on account-scoped totals by default, with contributor filter support where applicable.
+8. History summary and month drill-down are account-scoped by default, with contributor filter support where applicable.
+9. Contributor filter returns expected subsets and totals.
+10. Remove member:
    - user loses access immediately
    - prior receipts remain in account history/totals
-9. Duplicate receipt from second user is suppressed and logged.
-10. Run `next build` with zero errors.
+11. Duplicate receipt from second user is suppressed and logged.
+12. Run `next build` with zero errors.
 
 ---
 
@@ -218,7 +226,6 @@ runway/
 - Settings membership management UI
 - Per-user mailbox connection model
 - Account-scoped scan/parse/categorize pipeline
-- Account-scoped reporting endpoints with contributor filter
+- Account-scoped dashboard, insights, and history endpoints with contributor filter
 - Account-level dedupe and audit logging
 - Migration/integration tests for shared account behavior
-

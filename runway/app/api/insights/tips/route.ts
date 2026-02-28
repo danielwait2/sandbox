@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getTopFrequentItems, getCategoryTrends, getAnnualizedSpending } from "@/lib/insights";
 import { model } from "@/lib/gemini";
+import { parseContributorFilter, resolveAccountContextForUser } from "@/lib/account";
 
 const tipsCache = new Map<string, { tips: string[]; generatedAt: string }>();
 
@@ -12,19 +13,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const userId = session.user.email;
   const body = await request.json().catch(() => ({}));
   const month = (body as { month?: string }).month ?? new Date().toISOString().slice(0, 7);
+  const bodyContributor = (body as { contributor?: string }).contributor;
+  const contributor = parseContributorFilter(
+    bodyContributor ?? request.nextUrl.searchParams.get("contributor")
+  );
+  if (bodyContributor && !parseContributorFilter(bodyContributor)) {
+    return NextResponse.json({ error: "Invalid contributor filter" }, { status: 400 });
+  }
+  if (!contributor) {
+    return NextResponse.json({ error: "Invalid contributor filter" }, { status: 400 });
+  }
 
-  const cacheKey = `${userId}:${month}`;
+  const context = resolveAccountContextForUser(session.user.email);
+  if (!context) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const cacheKey = `${context.accountId}:${contributor}:${month}`;
   const cached = tipsCache.get(cacheKey);
   if (cached) {
     return NextResponse.json(cached);
   }
 
-  const frequentItems = getTopFrequentItems(userId, month);
-  const trends = getCategoryTrends(userId, month);
-  const annualized = getAnnualizedSpending(userId);
+  const frequentItems = getTopFrequentItems(context, contributor, month);
+  const trends = getCategoryTrends(context, contributor, month);
+  const annualized = getAnnualizedSpending(context, contributor);
 
   if (frequentItems.length === 0 && trends.length === 0) {
     return NextResponse.json({ tips: ["Not enough spending data yet to generate tips."], generatedAt: new Date().toISOString() });

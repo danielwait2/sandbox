@@ -19,9 +19,20 @@ type MonthlySpending = { month: string; total: number };
 type MonthlyCategorySpending = { month: string; category: string; total: number };
 type HistorySummary = { totalSpend: number; avgPerMonth: number; receiptCount: number; topCategory: string | null };
 type LineItem = { id: number; name: string; quantity: number; unit_price: number; total_price: number; category: string; subcategory: string | null };
-type ReceiptWithItems = { id: string; retailer: string; transaction_date: string; total: number; order_number: string | null; items: LineItem[] };
+type ReceiptWithItems = {
+  id: string;
+  retailer: string;
+  transaction_date: string;
+  total: number;
+  order_number: string | null;
+  contributor_user_id: string;
+  contributorRole: 'owner' | 'member';
+  items: LineItem[];
+};
+type ContributorFilter = 'all' | 'owner' | 'member';
 
 type HistoryData = {
+  contributor?: ContributorFilter;
   monthlySpending: MonthlySpending[];
   categorySpending: MonthlyCategorySpending[];
   summary: HistorySummary;
@@ -70,6 +81,7 @@ export default function HistoryPage() {
   const [data, setData] = useState<HistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [preset, setPreset] = useState<RangePreset>('year');
+  const [contributor, setContributor] = useState<ContributorFilter>('all');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -87,13 +99,13 @@ export default function HistoryPage() {
     if (status !== 'authenticated') return;
     setLoading(true);
     const range = useCustom ? { start: customStart, end: customEnd } : getDateRange(preset);
-    const res = await fetch(`/api/history?start=${range.start}&end=${range.end}`);
+    const res = await fetch(`/api/history?start=${range.start}&end=${range.end}&contributor=${contributor}`);
     const d = await res.json() as HistoryData;
     setData(d);
     setLoading(false);
     setSelectedMonth(null);
     setDrilldownReceipts(null);
-  }, [status, preset, useCustom, customStart, customEnd]);
+  }, [status, preset, useCustom, customStart, customEnd, contributor]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -105,7 +117,7 @@ export default function HistoryPage() {
     }
     setSelectedMonth(monthValue);
     setDrilldownLoading(true);
-    const res = await fetch(`/api/history/${monthValue}`);
+    const res = await fetch(`/api/history/${monthValue}?contributor=${contributor}`);
     const d = await res.json() as { receipts: ReceiptWithItems[] };
     setDrilldownReceipts(d.receipts);
     setDrilldownLoading(false);
@@ -180,6 +192,25 @@ export default function HistoryPage() {
             </button>
           )}
         </div>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {[
+          { key: 'all', label: 'All Contributors' },
+          { key: 'owner', label: 'Owner Only' },
+          { key: 'member', label: 'Member Only' },
+        ].map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => setContributor(opt.key as ContributorFilter)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              contributor === opt.key
+                ? 'bg-zinc-900 text-white'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {isEmpty ? (
@@ -296,6 +327,7 @@ export default function HistoryPage() {
                         <div>
                           <span className="font-medium text-zinc-900">{r.retailer}</span>
                           <span className="text-sm text-zinc-500 ml-3">{r.transaction_date}</span>
+                          <span className="text-xs text-zinc-400 ml-2 uppercase">{r.contributorRole}</span>
                           {r.order_number && (
                             <span className="text-xs text-zinc-400 ml-2">#{r.order_number}</span>
                           )}

@@ -19,7 +19,7 @@
 
 ## Quick Overview
 
-Add shared-account support so one owner can add one member, both can connect and scan their own Gmail accounts, and the app reports unified totals at the account level. Enforce clear owner/member permissions, contributor attribution, duplicate protection, and audit logging.
+Add shared-account support so one owner can add one member, both can connect and scan their own Gmail accounts, and the app reports unified totals at the account level. Explicitly convert existing Dashboard + Insights + History analytics to shared account scope for both users, with optional contributor filters. Enforce clear owner/member permissions, contributor attribution, duplicate protection, and audit logging.
 
 ---
 
@@ -54,7 +54,14 @@ Add shared-account support so one owner can add one member, both can connect and
 
 ### Aggregation, Reporting, and Exports
 - [ ] Convert dashboard, review queue, items, and receipt detail queries to `account_id` scope
-- [ ] Add optional contributor filter (`all`, `owner`, `member`) to summary endpoints
+- [ ] Convert existing analytics endpoints to shared account scope:
+- [ ] `/api/dashboard/summary`
+- [ ] `/api/insights`
+- [ ] `/api/insights/tips`
+- [ ] `/api/history`
+- [ ] `/api/history/[month]`
+- [ ] Add optional contributor filter (`all`, `owner`, `member`) to analytics/reporting endpoints where filtering is supported
+- [ ] Ensure owner and member see identical shared totals on `dashboard`, `insights`, and `history` for same account/date/filter selection
 - [ ] Include contributor attribution in receipt detail payloads and CSV export
 - [ ] Verify account-wide totals match sum of account line items for selected range
 
@@ -68,7 +75,8 @@ Add shared-account support so one owner can add one member, both can connect and
 - [ ] Add migration tests for legacy single-user data
 - [ ] Add integration tests for permissions and member removal behavior
 - [ ] Add ingestion tests for owner/member mailbox isolation
-- [ ] Add reporting tests for combined totals and contributor filters
+- [ ] Add reporting tests for combined totals and contributor filters across dashboard, insights, and history APIs
+- [ ] Add parity tests to verify owner/member shared-account analytics match for equivalent filters
 - [ ] Run `next build` and resolve all TypeScript/build failures
 
 ---
@@ -79,7 +87,8 @@ Add shared-account support so one owner can add one member, both can connect and
 - [ ] Member cannot add/remove users
 - [ ] Owner and member can each connect and scan their own Gmail mailbox
 - [ ] All dashboard totals are account-level by default for both users
-- [ ] Contributor filters return deterministic totals
+- [ ] Insights and history totals are account-level by default for both users
+- [ ] Contributor filters return deterministic totals across dashboard, insights, and history
 - [ ] Removing member immediately revokes access while preserving historical receipts
 - [ ] Duplicate receipts across users are suppressed at account level
 - [ ] Account-level audit logs are written for all critical actions
@@ -94,7 +103,7 @@ Add shared-account support so one owner can add one member, both can connect and
 - [ ] Member management APIs under `app/api/account/members/*`
 - [ ] Mailbox connection APIs under `app/api/mailbox/*`
 - [ ] Updated scan/parse/categorization pipelines for account + contributor model
-- [ ] Updated reporting APIs and UI filters for shared totals
+- [ ] Updated dashboard, insights, and history APIs/UI filters for shared totals
 - [ ] Settings UI updates for membership management
 - [ ] Duplicate detection + audit logging
 - [ ] Integration and migration test coverage for this phase

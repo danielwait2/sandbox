@@ -15,12 +15,15 @@ type CategoryData = {
 
 type SummaryData = {
   period: string;
+  contributor?: 'all' | 'owner' | 'member';
   totalSpend: number;
   receiptCount: number;
   topCategory: string;
   mostFrequentItem: string;
   categories: CategoryData[];
 };
+
+type ContributorFilter = 'all' | 'owner' | 'member';
 
 function ScanButton({ onComplete }: { onComplete: () => void }) {
   const [scanning, setScanning] = useState(false);
@@ -74,15 +77,16 @@ function SkeletonCard() {
 export default function DashboardPage() {
   const router = useRouter();
   const [period, setPeriod] = useState('this_month');
+  const [contributor, setContributor] = useState<ContributorFilter>('all');
   const [data, setData] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewCount, setReviewCount] = useState(0);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
 
-  const fetchSummary = async (p: string) => {
+  const fetchSummary = async (p: string, c: ContributorFilter) => {
     setLoading(true);
-    const res = await fetch(`/api/dashboard/summary?period=${p}`);
+    const res = await fetch(`/api/dashboard/summary?period=${p}&contributor=${c}`);
     if (res.ok) {
       const json = (await res.json()) as SummaryData;
       setData(json);
@@ -91,13 +95,13 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    void fetchSummary(period);
+    void fetchSummary(period, contributor);
     // fetch review count
     fetch('/api/review-queue')
       .then((r) => r.json())
       .then((j: { count: number }) => setReviewCount(j.count ?? 0))
       .catch(() => {});
-  }, [period]);
+  }, [period, contributor]);
 
   const handlePeriodChange = (p: string) => {
     setPeriod(p);
@@ -109,7 +113,7 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category: categoryName, month: currentMonth, amount }),
     });
-    await fetchSummary(period);
+    await fetchSummary(period, contributor);
   };
 
   return (
@@ -117,7 +121,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
         <div className="flex items-center gap-3">
-        <ScanButton onComplete={() => fetchSummary(period)} />
+        <ScanButton onComplete={() => fetchSummary(period, contributor)} />
         {reviewCount > 0 && (
           <a
             href="/review-queue"
@@ -130,6 +134,25 @@ export default function DashboardPage() {
       </div>
 
       <PeriodToggle period={period} onChange={handlePeriodChange} />
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: 'all', label: 'All Contributors' },
+          { key: 'owner', label: 'Owner Only' },
+          { key: 'member', label: 'Member Only' },
+        ].map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => setContributor(opt.key as ContributorFilter)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              contributor === opt.key
+                ? 'bg-zinc-900 text-white'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <>
@@ -152,7 +175,7 @@ export default function DashboardPage() {
               <p className="text-zinc-600 text-lg mb-4">
                 Connect Gmail and scan your receipts to get started
               </p>
-              <ScanButton onComplete={() => fetchSummary(period)} />
+              <ScanButton onComplete={() => fetchSummary(period, contributor)} />
             </div>
           ) : (
             <SummaryStats
