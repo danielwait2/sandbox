@@ -7,6 +7,7 @@ import { categorizeItems } from "@/lib/categorizer";
 import { getConnectedMailboxConnection, upsertMailboxConnection } from "@/lib/mailbox";
 import { scanGmail } from "@/lib/gmailScanner";
 import { processUnparsedReceipts } from "@/lib/parseQueue";
+import { isInsufficientScopeError } from "@/lib/googleErrors";
 import { writeAuditEvent } from "@/lib/audit";
 
 export async function POST() {
@@ -94,6 +95,23 @@ export async function POST() {
       reviewQueue: categorizeResult.reviewQueue,
     });
   } catch (error) {
+    if (isInsufficientScopeError(error)) {
+      writeAuditEvent({
+        accountId: context.accountId,
+        actorUserId: context.viewerUserId,
+        eventType: "scan_failed",
+        metadata: JSON.stringify({ message: "insufficient_authentication_scopes" }),
+      });
+
+      return NextResponse.json(
+        {
+          error: "Gmail permission missing. Reconnect Google and grant Gmail access, then scan again.",
+          code: "reauth_required",
+        },
+        { status: 400 }
+      );
+    }
+
     writeAuditEvent({
       accountId: context.accountId,
       actorUserId: context.viewerUserId,

@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { resolveAccountContextForUser } from "@/lib/account";
+import { createGmailClient } from "@/lib/gmail";
+import { isInsufficientScopeError } from "@/lib/googleErrors";
 import { getConnectedMailboxConnection, upsertMailboxConnection } from "@/lib/mailbox";
 import { writeAuditEvent } from "@/lib/audit";
 
@@ -24,9 +26,31 @@ export async function POST(): Promise<NextResponse> {
 
   if (!session.accessToken || !session.refreshToken) {
     return NextResponse.json(
-      { error: "Missing Google OAuth tokens in session." },
+      {
+        error: "Google mailbox authorization is missing or expired. Reconnect Google to grant Gmail access.",
+        code: "reauth_required",
+      },
       { status: 400 }
     );
+  }
+
+  try {
+    const { gmail } = await createGmailClient({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    });
+    await gmail.users.getProfile({ userId: "me" });
+  } catch (error) {
+    if (isInsufficientScopeError(error)) {
+      return NextResponse.json(
+        {
+          error: "Gmail permission is missing. Reconnect Google and grant Gmail access.",
+          code: "reauth_required",
+        },
+        { status: 400 }
+      );
+    }
+    throw error;
   }
 
   const context = resolveAccountContextForUser(session.user.email);

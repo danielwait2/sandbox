@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 type Rule = {
   id: number;
@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [mailboxConnected, setMailboxConnected] = useState(false);
   const [mailboxLoading, setMailboxLoading] = useState(true);
+  const [mailboxMessage, setMailboxMessage] = useState<string | null>(null);
 
   const fetchMailboxStatus = async () => {
     setMailboxLoading(true);
@@ -83,12 +84,36 @@ export default function SettingsPage() {
   }, []);
 
   const handleMailboxDisconnect = async () => {
-    await fetch('/api/mailbox/disconnect', { method: 'DELETE' });
+    setMailboxMessage(null);
+    const res = await fetch('/api/mailbox/disconnect', { method: 'DELETE' });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { error?: string };
+      setMailboxMessage(json.error ?? 'Unable to disconnect mailbox.');
+    }
     await fetchMailboxStatus();
   };
 
   const handleMailboxConnect = async () => {
-    await fetch('/api/mailbox/connect', { method: 'POST' });
+    setMailboxMessage(null);
+    const res = await fetch('/api/mailbox/connect', { method: 'POST' });
+    const json = await res.json().catch(() => ({})) as { error?: string; code?: string };
+
+    if (!res.ok && json.code === 'reauth_required') {
+      await signIn(
+        'google',
+        { callbackUrl: '/settings' },
+        {
+          scope: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      );
+      return;
+    }
+
+    if (!res.ok) {
+      setMailboxMessage(json.error ?? 'Unable to connect mailbox.');
+    }
     await fetchMailboxStatus();
   };
 
@@ -172,6 +197,9 @@ export default function SettingsPage() {
               <p className={`text-sm ${mailboxConnected ? 'text-green-600' : 'text-amber-600'}`}>
                 {mailboxConnected ? 'Connected' : 'Disconnected'}
               </p>
+            )}
+            {mailboxMessage && (
+              <p className="text-sm text-red-600">{mailboxMessage}</p>
             )}
           </div>
           <div className="flex items-center gap-2">

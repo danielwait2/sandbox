@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { AccountContext } from "@/lib/account";
 import { writeAuditEvent } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { getConfiguredDevEmails } from "@/lib/devEmails";
 import { createGmailClient } from "@/lib/gmail";
 import { isReceiptEmail } from "@/lib/receiptDetector";
 
@@ -99,10 +100,12 @@ export const scanGmail = async (
   const { gmail } = await createGmailClient({ accessToken, refreshToken });
 
   const afterEpoch = getAfterEpoch(userId);
-  const devEmail = process.env.NODE_ENV !== "production" ? process.env.DEV_TEST_EMAIL : undefined;
-  const fromClause = devEmail
-    ? `(walmart.com OR costco.com OR ${devEmail})`
-    : "(walmart.com OR costco.com)";
+  const devSenders =
+    process.env.NODE_ENV !== "production"
+      ? Array.from(new Set([userId.toLowerCase(), ...getConfiguredDevEmails()]))
+      : [];
+  const fromSources = ["walmart.com", "costco.com", ...devSenders];
+  const fromClause = `(${fromSources.join(" OR ")})`;
   const query = `from:${fromClause} after:${afterEpoch}`;
   console.log(`[gmailScanner] query: ${query}`);
 

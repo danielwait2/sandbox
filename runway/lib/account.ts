@@ -22,6 +22,7 @@ type MembershipRow = {
 
 type MemberRow = { user_id: string };
 type PendingMembershipRow = { account_id: string };
+const normalizeUserId = (userId: string): string => userId.trim().toLowerCase();
 
 export function parseContributorFilter(value: string | null): ContributorFilter | null {
   if (value === null || value === "all") return "all";
@@ -30,6 +31,7 @@ export function parseContributorFilter(value: string | null): ContributorFilter 
 }
 
 function createDefaultAccountForUser(userId: string): void {
+  const normalizedUserId = normalizeUserId(userId);
   const accountId = randomUUID();
   const now = new Date().toISOString();
 
@@ -37,18 +39,19 @@ function createDefaultAccountForUser(userId: string): void {
     db.prepare(
       `INSERT INTO accounts (id, owner_user_id, created_at)
        VALUES (?, ?, ?)`
-    ).run(accountId, userId, now);
+    ).run(accountId, normalizedUserId, now);
 
     db.prepare(
       `INSERT INTO account_memberships (account_id, user_id, role, status, created_at, updated_at)
        VALUES (?, ?, 'owner', 'active', ?, ?)`
-    ).run(accountId, userId, now, now);
+    ).run(accountId, normalizedUserId, now, now);
   });
 
   insert();
 }
 
 export function resolveAccountContextForUser(userId: string): AccountContext | null {
+  const normalizedUserId = normalizeUserId(userId);
   let row = db
     .prepare(
       `SELECT m.account_id as accountId, m.role as viewerRole, a.owner_user_id as ownerUserId
@@ -58,7 +61,7 @@ export function resolveAccountContextForUser(userId: string): AccountContext | n
        ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END
        LIMIT 1`
     )
-      .get(userId) as MembershipRow | undefined;
+      .get(normalizedUserId) as MembershipRow | undefined;
 
   if (!row) {
     const pending = db
@@ -68,14 +71,14 @@ export function resolveAccountContextForUser(userId: string): AccountContext | n
          WHERE user_id = ? AND status = 'pending'
          LIMIT 1`
       )
-      .get(userId) as PendingMembershipRow | undefined;
+      .get(normalizedUserId) as PendingMembershipRow | undefined;
 
     if (pending) {
       db.prepare(
         `UPDATE account_memberships
          SET status = 'active', updated_at = ?
          WHERE account_id = ? AND user_id = ? AND status = 'pending'`
-      ).run(new Date().toISOString(), pending.account_id, userId);
+      ).run(new Date().toISOString(), pending.account_id, normalizedUserId);
 
       row = db
         .prepare(
@@ -86,7 +89,7 @@ export function resolveAccountContextForUser(userId: string): AccountContext | n
            ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END
            LIMIT 1`
         )
-        .get(userId) as MembershipRow | undefined;
+        .get(normalizedUserId) as MembershipRow | undefined;
     }
   }
 
@@ -98,13 +101,13 @@ export function resolveAccountContextForUser(userId: string): AccountContext | n
          WHERE user_id = ?
          LIMIT 1`
       )
-      .get(userId) as { id: number } | undefined;
+      .get(normalizedUserId) as { id: number } | undefined;
 
     if (existingMembership) {
       return null;
     }
 
-    createDefaultAccountForUser(userId);
+    createDefaultAccountForUser(normalizedUserId);
     row = db
       .prepare(
         `SELECT m.account_id as accountId, m.role as viewerRole, a.owner_user_id as ownerUserId
@@ -114,7 +117,7 @@ export function resolveAccountContextForUser(userId: string): AccountContext | n
          ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END
          LIMIT 1`
       )
-      .get(userId) as MembershipRow | undefined;
+      .get(normalizedUserId) as MembershipRow | undefined;
   }
 
   if (!row) return null;
@@ -130,7 +133,7 @@ export function resolveAccountContextForUser(userId: string): AccountContext | n
 
   return {
     accountId: row.accountId,
-    viewerUserId: userId,
+    viewerUserId: normalizedUserId,
     viewerRole: row.viewerRole,
     ownerUserId: row.ownerUserId,
     memberUserId: member?.user_id ?? null,

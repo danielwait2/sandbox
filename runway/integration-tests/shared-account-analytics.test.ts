@@ -260,3 +260,15 @@ test("pending member activates on first account resolution", () => {
     .get("acct_pending", "invitee@example.com") as { status: string };
   assert.equal(membership.status, "active");
 });
+
+test("mailbox connection lookups are case-insensitive by user id", () => {
+  resetDb();
+
+  upsertMailboxConnection("Member.User@Example.com", "google", "member-access", "member-refresh");
+
+  const lookupLower = getConnectedMailboxConnection("member.user@example.com", "google");
+  const lookupUpper = getConnectedMailboxConnection("MEMBER.USER@EXAMPLE.COM", "google");
+
+  assert.ok(lookupLower);
+  assert.ok(lookupUpper);
+});
