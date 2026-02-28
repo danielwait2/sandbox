@@ -49,28 +49,29 @@ Bootstrap the Next.js app with Tailwind, wire up Google OAuth via NextAuth.js, a
 
 ## Success Criteria
 
-- [ ] `npx next dev` starts without errors
-- [ ] Unauthenticated visit to `/dashboard` redirects to `/signin`
+- [x] `npx next dev` starts without errors
+- [x] Unauthenticated visit to `/dashboard` redirects to `/signin`
 - [ ] Full Google OAuth flow completes and lands on `/dashboard`
-- [ ] All 4 SQLite tables exist after first run
+- [x] All 4 SQLite tables exist after first run
 - [ ] `GET /api/auth/session` returns session with `user.email`
-- [ ] No secrets committed — `.env.local` is gitignored
+- [x] No secrets committed — `.env.local` is gitignored
 
 ---
 
 ## Key Deliverables
 
-- [ ] Working Next.js app at `localhost:3000`
-- [ ] `lib/db.ts` and `lib/migrations.ts` (reused by all phases)
+- [x] Working Next.js app at `localhost:3000`
+- [x] `lib/db.ts` and `lib/migrations.ts` (reused by all phases)
 - [ ] Google OAuth sign-in → session → redirect working
-- [ ] SQLite DB with schema initialized on first run
-- [ ] `.env.example` documenting all required vars
+- [x] SQLite DB with schema initialized on first run
+- [x] `.env.example` documenting all required vars
 
 ---
 
 ## Notes & Decisions
 
 <!-- Track decisions made during implementation here -->
+- OAuth validation is blocked until valid `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are provided in `runway/.env.local`.
 
 ---
 
