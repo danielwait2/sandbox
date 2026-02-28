@@ -43,8 +43,8 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 - [x] Add `user_id` to `rules` table migration (same fix as `budgets` in Phase 5)
 
 ### Navigation & Polish
-- [ ] Persistent nav bar across `/dashboard`, `/review-queue`, `/settings` with active link highlight
-- [ ] `app/dashboard/loading.tsx` and `app/review-queue/loading.tsx` skeleton screens
+- [x] Persistent nav bar across `/dashboard`, `/review-queue`, `/settings` with active link highlight
+- [x] `app/dashboard/loading.tsx` and `app/review-queue/loading.tsx` skeleton screens
 - [ ] Verify responsive layout at 375px on all pages
 - [ ] Run `next build` — fix all TypeScript and build errors
 - [ ] Confirm no raw email content stored anywhere in the DB
