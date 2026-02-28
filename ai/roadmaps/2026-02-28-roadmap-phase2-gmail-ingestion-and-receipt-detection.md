@@ -38,7 +38,7 @@ Use the user's Gmail OAuth token to fetch emails, filter to Walmart and Costco r
 - [x] Store and update `last_scanned_at` per user after each scan
 
 ### API Route
-- [ ] `app/api/receipts/scan/route.ts` — POST, auth-gated, calls `scanGmail`, returns summary JSON
+- [x] `app/api/receipts/scan/route.ts` — POST, auth-gated, calls `scanGmail`, returns summary JSON
 
 ---
 
