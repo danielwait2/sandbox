@@ -1,6 +1,6 @@
 # Phase 5: Dashboard
 
-**Status:** In Progress
+**Status:** Complete
 **Last Updated:** 2026-02-28
 
 ## Tasks
@@ -16,7 +16,7 @@
 
 ## Success Criteria
 
-- [ ] Dashboard loads with spend by category
-- [ ] Budget editing works inline
-- [ ] Period toggle changes date range
-- [ ] Category drill-down shows line items
+- [x] Dashboard loads with spend by category
+- [x] Budget editing works inline
+- [x] Period toggle changes date range
+- [x] Category drill-down shows line items
