@@ -51,6 +51,7 @@ export async function DELETE(): Promise<NextResponse> {
     db.prepare(`DELETE FROM rules WHERE user_id IN (${placeholders})`).run(...contributorIds);
     db.prepare(`DELETE FROM scan_state WHERE user_id IN (${placeholders})`).run(...contributorIds);
     db.prepare(`DELETE FROM mailbox_connections WHERE user_id IN (${placeholders})`).run(...contributorIds);
+    db.prepare(`DELETE FROM user_profiles WHERE user_id IN (${placeholders})`).run(...contributorIds);
   }
 
   db.prepare("DELETE FROM account_memberships WHERE account_id = ?").run(context.accountId);

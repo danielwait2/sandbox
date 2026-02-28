@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 type ReceiptSummary = {
   id: string;
@@ -14,8 +14,11 @@ type ReceiptSummary = {
   order_number: string | null;
   item_count: number;
   contributor_user_id: string;
+  contributor_display_name: string;
   contributor_role: 'owner' | 'member';
 };
+
+const SEARCH_URL_DEBOUNCE_MS = 250;
 
 function formatUSD(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -39,12 +42,36 @@ function SkeletonRow() {
   );
 }
 
+function getInitialQueryParam(name: string) {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return new URLSearchParams(window.location.search).get(name) ?? '';
+}
+
+function getInitialRetailers() {
+  const rawRetailers = getInitialQueryParam('retailers');
+  if (!rawRetailers) {
+    return [];
+  }
+
+  return rawRetailers
+    .split(',')
+    .map((retailer) => retailer.trim())
+    .filter(Boolean);
+}
+
 export default function ReceiptsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [receipts, setReceipts] = useState<ReceiptSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [retailerFilter, setRetailerFilter] = useState<string | null>(null);
+  const [search, setSearch] = useState(() => getInitialQueryParam('q'));
+  const [debouncedSearch, setDebouncedSearch] = useState(() => getInitialQueryParam('q'));
+  const [selectedRetailers, setSelectedRetailers] = useState<string[]>(() => getInitialRetailers());
+  const [fromDate, setFromDate] = useState(() => getInitialQueryParam('from'));
+  const [toDate, setToDate] = useState(() => getInitialQueryParam('to'));
 
   useEffect(() => {
     fetch('/api/receipts')
@@ -53,59 +80,176 @@ export default function ReceiptsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, SEARCH_URL_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    const trimmedSearch = debouncedSearch.trim();
+
+    if (trimmedSearch) {
+      params.set('q', trimmedSearch);
+    }
+    if (selectedRetailers.length > 0) {
+      params.set('retailers', selectedRetailers.join(','));
+    }
+    if (fromDate) {
+      params.set('from', fromDate);
+    }
+    if (toDate) {
+      params.set('to', toDate);
+    }
+
+    const nextQuery = params.toString();
+    const currentQuery = window.location.search.startsWith('?')
+      ? window.location.search.slice(1)
+      : window.location.search;
+
+    if (nextQuery === currentQuery) {
+      return;
+    }
+
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [debouncedSearch, fromDate, pathname, router, selectedRetailers, toDate]);
+
   const retailers = useMemo(() => Array.from(new Set(receipts.map((r) => r.retailer))).sort(), [receipts]);
+  const hasInvalidDateRange = Boolean(fromDate && toDate && fromDate > toDate);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return receipts.filter((r) => {
-      if (retailerFilter && r.retailer !== retailerFilter) return false;
-      if (q && !r.retailer.toLowerCase().includes(q) && !(r.order_number ?? '').toLowerCase().includes(q) && !r.transaction_date.includes(q)) return false;
+    const searchText = search.trim().toLowerCase();
+    const retailerSet = new Set(selectedRetailers);
+
+    const matchesSearch = (receipt: ReceiptSummary) => {
+      if (!searchText) {
+        return true;
+      }
+
+      return (
+        receipt.retailer.toLowerCase().includes(searchText) ||
+        (receipt.order_number ?? '').toLowerCase().includes(searchText) ||
+        receipt.transaction_date.includes(searchText)
+      );
+    };
+
+    const matchesRetailers = (receipt: ReceiptSummary) => {
+      if (retailerSet.size === 0) {
+        return true;
+      }
+
+      return retailerSet.has(receipt.retailer);
+    };
+
+    const matchesDateRange = (receipt: ReceiptSummary) => {
+      if (hasInvalidDateRange) {
+        return true;
+      }
+      if (fromDate && receipt.transaction_date < fromDate) {
+        return false;
+      }
+      if (toDate && receipt.transaction_date > toDate) {
+        return false;
+      }
       return true;
-    });
-  }, [receipts, retailerFilter, search]);
+    };
+
+    return receipts
+      .filter(matchesSearch)
+      .filter(matchesRetailers)
+      .filter(matchesDateRange);
+  }, [fromDate, hasInvalidDateRange, receipts, search, selectedRetailers, toDate]);
+
+  const clearFilters = () => {
+    setSearch('');
+    setDebouncedSearch('');
+    setSelectedRetailers([]);
+    setFromDate('');
+    setToDate('');
+  };
+
+  const toggleRetailer = (retailer: string) => {
+    setSelectedRetailers((current) =>
+      current.includes(retailer)
+        ? current.filter((value) => value !== retailer)
+        : [...current, retailer]
+    );
+  };
 
   return (
-    <main className="mx-auto max-w-3xl p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-zinc-900">Receipts</h1>
+    <main className="mx-auto max-w-3xl p-6 space-y-4">
+      {!loading && receipts.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold text-zinc-900">Receipts</h1>
+            <div className="flex flex-wrap justify-end items-center gap-2 text-xs text-zinc-600">
+              <span className="mr-1">Date</span>
+              <label className="flex min-w-[130px] flex-col gap-1 sm:flex-none">
+                <input
+                  type="date"
+                  aria-label="From date"
+                  className="w-full border border-zinc-200 bg-zinc-100 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+              </label>
+              <span className="text-zinc-400">to</span>
+              <label className="flex min-w-[130px] flex-col gap-1 sm:flex-none">
+                <input
+                  type="date"
+                  aria-label="To date"
+                  className="w-full border border-zinc-200 bg-zinc-100 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                />
+              </label>
+            </div>
+          </div>
 
-      {!loading && receipts.length > 0 && (
-        <div className="space-y-3">
-          {/* Search */}
           <input
             type="text"
-            placeholder="Search by retailer or order number…"
-            className="w-full border border-zinc-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            placeholder="Search by retailer or order number..."
+            className="mt-3 w-full border border-zinc-200 bg-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          {/* Retailer chips */}
-          <div className="flex flex-wrap gap-2">
+          {hasInvalidDateRange && (
+            <p className="text-xs text-red-600">From date must be on or before To date.</p>
+          )}
+
+          <div className="flex flex-wrap justify-center gap-2">
             <button
-              onClick={() => setRetailerFilter(null)}
+              onClick={() => setSelectedRetailers([])}
               className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
-                retailerFilter === null
+                selectedRetailers.length === 0
                   ? 'bg-zinc-900 text-white border-zinc-900'
-                  : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
+                  : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:border-zinc-400'
               }`}
             >
               All
             </button>
-            {retailers.map((r) => (
+            {retailers.map((retailer) => (
               <button
-                key={r}
-                onClick={() => setRetailerFilter(retailerFilter === r ? null : r)}
+                key={retailer}
+                onClick={() => toggleRetailer(retailer)}
                 className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
-                  retailerFilter === r
+                  selectedRetailers.includes(retailer)
                     ? 'bg-zinc-900 text-white border-zinc-900'
-                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
+                    : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:border-zinc-400'
                 }`}
               >
-                {r}
+                {retailer}
               </button>
             ))}
           </div>
         </div>
+      ) : (
+        <h1 className="text-2xl font-bold text-zinc-900">Receipts</h1>
       )}
 
       <div>
@@ -115,7 +259,7 @@ export default function ReceiptsPage() {
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-12 text-center">
             {receipts.length === 0 ? (
               <>
-                <p className="text-zinc-500 mb-2">No receipts yet — pull your receipts from email to get started</p>
+                <p className="text-zinc-500 mb-2">No receipts yet - pull your receipts from email to get started</p>
                 <Link href="/dashboard" className="text-blue-600 hover:underline text-sm">Go to Dashboard</Link>
               </>
             ) : (
@@ -123,12 +267,12 @@ export default function ReceiptsPage() {
             )}
           </div>
         ) : (
-          <div className="divide-y divide-zinc-100">
+          <div className="space-y-2">
             {filtered.map((receipt) => (
               <button
                 key={receipt.id}
                 onClick={() => router.push(`/receipts/${receipt.id}`)}
-                className="w-full flex items-center justify-between py-4 text-left hover:bg-zinc-50 transition-colors"
+                className="w-full flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-4 text-left hover:bg-zinc-50 transition-colors"
               >
                 <div>
                   <p className="font-medium text-zinc-900">{receipt.retailer}</p>
@@ -137,7 +281,7 @@ export default function ReceiptsPage() {
                     {receipt.order_number && <span> &middot; #{receipt.order_number}</span>}
                   </p>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Found in: {receipt.contributor_user_id}
+                    Found in: {receipt.contributor_display_name}
                   </p>
                 </div>
                 <p className="font-semibold text-zinc-900">{formatUSD(receipt.total)}</p>
@@ -149,6 +293,18 @@ export default function ReceiptsPage() {
 
       {!loading && filtered.length > 0 && filtered.length !== receipts.length && (
         <p className="text-xs text-zinc-400 text-right">{filtered.length} of {receipts.length} receipts</p>
+      )}
+
+      {!loading && receipts.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-sm text-zinc-500 hover:text-zinc-800 underline-offset-2 hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
       )}
     </main>
   );

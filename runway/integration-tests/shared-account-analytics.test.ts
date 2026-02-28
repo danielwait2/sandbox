@@ -16,7 +16,7 @@ type MailboxModule = typeof import("@/lib/mailbox");
 type DashboardSummaryModule = typeof import("@/lib/dashboardSummary");
 type ReceiptsModule = typeof import("@/lib/receipts");
 type GmailScannerModule = typeof import("@/lib/gmailScanner");
-type ScanDeps = Parameters<GmailScannerModule["scanGmail"]>[4];
+type ScanDeps = NonNullable<Parameters<GmailScannerModule["scanGmail"]>[4]>;
 
 let db: DbModule["db"];
 let resolveAccountContextForUser: AccountModule["resolveAccountContextForUser"];
@@ -25,6 +25,7 @@ let getHistorySummary: HistoryModule["getHistorySummary"];
 let getMonthlySpending: HistoryModule["getMonthlySpending"];
 let getMonthlyCategorySpending: HistoryModule["getMonthlyCategorySpending"];
 let getReceiptsForMonth: HistoryModule["getReceiptsForMonth"];
+let getCurrentVsProjectedSeries: HistoryModule["getCurrentVsProjectedSeries"];
 let upsertMailboxConnection: MailboxModule["upsertMailboxConnection"];
 let getConnectedMailboxConnection: MailboxModule["getConnectedMailboxConnection"];
 let disconnectMailboxConnection: MailboxModule["disconnectMailboxConnection"];
@@ -36,7 +37,7 @@ test.before(async () => {
   ({ db } = await import("@/lib/db"));
   ({ resolveAccountContextForUser } = await import("@/lib/account"));
   ({ getAllInsights } = await import("@/lib/insights"));
-  ({ getHistorySummary, getMonthlySpending, getMonthlyCategorySpending, getReceiptsForMonth } = await import("@/lib/history"));
+  ({ getHistorySummary, getMonthlySpending, getMonthlyCategorySpending, getReceiptsForMonth, getCurrentVsProjectedSeries } = await import("@/lib/history"));
   ({ upsertMailboxConnection, getConnectedMailboxConnection, disconnectMailboxConnection } = await import("@/lib/mailbox"));
   ({ getDashboardSummary } = await import("@/lib/dashboardSummary"));
   ({ getRecentReceipts } = await import("@/lib/receipts"));
@@ -184,8 +185,8 @@ test("owner and member scans persist distinct contributor attribution", async ()
   assert.ok(memberContext);
 
   let idSeq = 0;
-  const baseDeps = {
-    detectReceipt: () => ({ isReceipt: true, retailer: "Walmart" }),
+  const baseDeps: ScanDeps = {
+    detectReceipt: () => ({ isReceipt: true, retailer: "Walmart" as const }),
     generateId: () => `scan_receipt_${++idSeq}`,
     now: () => new Date("2026-02-10T00:00:00.000Z"),
   };
@@ -432,4 +433,153 @@ test("mailbox connection lookups are case-insensitive by user id", () => {
 
   assert.ok(lookupLower);
   assert.ok(lookupUpper);
+});
+
+test("current vs projected uses monthly budgets when present", () => {
+  resetDb();
+  seedSharedAccount();
+
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO receipts (id, user_id, account_id, contributor_user_id, retailer, transaction_date, total, parsed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run("r_owner_2", "owner@example.com", "acct_shared_v1", "owner@example.com", "Walmart", "2026-02-05", 80, now);
+  db.prepare(
+    `INSERT INTO line_items (receipt_id, raw_name, name, quantity, unit_price, total_price, category)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run("r_owner_2", "Eggs", "Eggs", 1, 80, 80, "Groceries");
+
+  db.prepare(
+    `INSERT INTO budgets (user_id, category, subcategory, month, amount)
+     VALUES (?, ?, NULL, ?, ?)`
+  ).run("owner@example.com", "Groceries", "2026-01", 100);
+  db.prepare(
+    `INSERT INTO budgets (user_id, category, subcategory, month, amount)
+     VALUES (?, ?, NULL, ?, ?)`
+  ).run("owner@example.com", "Groceries", "2026-02", 100);
+
+  const context = resolveAccountContextForUser("owner@example.com");
+  assert.ok(context);
+
+  const series = getCurrentVsProjectedSeries(
+    context,
+    "owner",
+    "2026-01",
+    "2026-02",
+    "Groceries"
+  );
+
+  assert.equal(series.projectionMethod, "budget");
+  assert.equal(series.points[0].date, "2026-01-01");
+  assert.equal(series.points[series.points.length - 1].date, "2026-02-28");
+  assert.equal(series.points[series.points.length - 1].current, 110);
+  assert.equal(series.points[series.points.length - 1].projected, 200);
+});
+
+test("current vs projected falls back to recent historical pace when budget is missing", () => {
+  resetDb();
+
+  const now = new Date().toISOString();
+  seedSharedAccountMembers();
+
+  const insertReceipt = db.prepare(
+    `INSERT INTO receipts (id, user_id, account_id, contributor_user_id, retailer, transaction_date, total, parsed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertLineItem = db.prepare(
+    `INSERT INTO line_items (receipt_id, raw_name, name, quantity, unit_price, total_price, category)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  );
+
+  insertReceipt.run("r_hist_1", "owner@example.com", "acct_shared_v1", "owner@example.com", "Walmart", "2025-11-03", 30, now);
+  insertLineItem.run("r_hist_1", "Food", "Food", 1, 30, 30, "Groceries");
+
+  insertReceipt.run("r_hist_2", "owner@example.com", "acct_shared_v1", "owner@example.com", "Walmart", "2025-12-03", 30, now);
+  insertLineItem.run("r_hist_2", "Food", "Food", 1, 30, 30, "Groceries");
+
+  insertReceipt.run("r_hist_3", "owner@example.com", "acct_shared_v1", "owner@example.com", "Walmart", "2026-01-03", 30, now);
+  insertLineItem.run("r_hist_3", "Food", "Food", 1, 30, 30, "Groceries");
+
+  const context = resolveAccountContextForUser("owner@example.com");
+  assert.ok(context);
+
+  const series = getCurrentVsProjectedSeries(
+    context,
+    "owner",
+    "2026-02",
+    "2026-03",
+    "Groceries"
+  );
+
+  assert.equal(series.projectionMethod, "historical_average");
+  assert.equal(series.points[0].date, "2026-02-01");
+  assert.equal(series.points[series.points.length - 1].date, "2026-03-31");
+  assert.equal(series.points[series.points.length - 1].current, 0);
+  assert.equal(series.points[series.points.length - 1].projected, 60);
+});
+
+test("current vs projected changes when category selection changes", () => {
+  resetDb();
+  seedSharedAccount();
+
+  const context = resolveAccountContextForUser("owner@example.com");
+  assert.ok(context);
+
+  const allCategoriesSeries = getCurrentVsProjectedSeries(
+    context,
+    "all",
+    "2026-01",
+    "2026-01",
+    null
+  );
+  const groceriesSeries = getCurrentVsProjectedSeries(
+    context,
+    "all",
+    "2026-01",
+    "2026-01",
+    "Groceries"
+  );
+
+  const allFinal = allCategoriesSeries.points[allCategoriesSeries.points.length - 1];
+  const groceriesFinal = groceriesSeries.points[groceriesSeries.points.length - 1];
+
+  assert.equal(allFinal.current, 150);
+  assert.equal(groceriesFinal.current, 55);
+  assert.notEqual(allFinal.current, groceriesFinal.current);
+});
+
+test("current vs projected respects contributor filter scoping", () => {
+  resetDb();
+  seedSharedAccount();
+
+  db.prepare(
+    `INSERT INTO budgets (user_id, category, subcategory, month, amount)
+     VALUES (?, ?, NULL, ?, ?)`
+  ).run("owner@example.com", "Groceries", "2026-01", 100);
+
+  const context = resolveAccountContextForUser("owner@example.com");
+  assert.ok(context);
+
+  const ownerSeries = getCurrentVsProjectedSeries(
+    context,
+    "owner",
+    "2026-01",
+    "2026-01",
+    "Groceries"
+  );
+  const memberSeries = getCurrentVsProjectedSeries(
+    context,
+    "member",
+    "2026-01",
+    "2026-01",
+    "Groceries"
+  );
+
+  const ownerFinal = ownerSeries.points[ownerSeries.points.length - 1];
+  const memberFinal = memberSeries.points[memberSeries.points.length - 1];
+
+  assert.equal(ownerFinal.current, 30);
+  assert.equal(memberFinal.current, 25);
+  assert.equal(ownerFinal.projected, 100);
+  assert.equal(memberFinal.projected, 100);
 });

@@ -12,6 +12,7 @@ type Rule = {
 
 type AccountMember = {
   userId: string;
+  displayName: string;
   role: 'owner' | 'member';
   status: 'pending' | 'active' | 'removed';
   createdAt: string;
@@ -22,6 +23,12 @@ type MembersResponse = {
   accountId: string;
   viewerRole: 'owner' | 'member';
   members: AccountMember[];
+};
+
+type ProfileResponse = {
+  displayName: string;
+  resolvedDisplayName: string;
+  maxLength: number;
 };
 
 export default function SettingsPage() {
@@ -40,6 +47,13 @@ export default function SettingsPage() {
   const [mailboxConnected, setMailboxConnected] = useState(false);
   const [mailboxLoading, setMailboxLoading] = useState(true);
   const [mailboxMessage, setMailboxMessage] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [displayNameResolved, setDisplayNameResolved] = useState<string | null>(null);
+  const [displayNameMaxLength, setDisplayNameMaxLength] = useState(60);
+  const [displayNameLoading, setDisplayNameLoading] = useState(true);
+  const [displayNameSaving, setDisplayNameSaving] = useState(false);
+  const [displayNameMessage, setDisplayNameMessage] = useState<string | null>(null);
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null);
 
   const fetchMailboxStatus = async () => {
     setMailboxLoading(true);
@@ -75,13 +89,73 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchProfile = async () => {
+    setDisplayNameLoading(true);
+    setDisplayNameError(null);
+    setDisplayNameMessage(null);
+    try {
+      const res = await fetch('/api/settings/profile');
+      const json = await res.json() as ProfileResponse & { error?: string };
+      if (!res.ok) {
+        setDisplayNameError(json.error ?? 'Failed to load display name.');
+        return;
+      }
+      setDisplayName(json.displayName ?? '');
+      setDisplayNameResolved(json.resolvedDisplayName ?? null);
+      setDisplayNameMaxLength(json.maxLength ?? 60);
+    } catch {
+      setDisplayNameError('Failed to load display name.');
+    } finally {
+      setDisplayNameLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetch('/api/rules')
       .then((r) => r.json())
       .then((j: { rules: Rule[] }) => setRules(j.rules ?? []));
     void fetchMembers();
     void fetchMailboxStatus();
+    void fetchProfile();
   }, []);
+
+  const handleSaveDisplayName = async () => {
+    const trimmed = displayName.trim();
+    setDisplayNameMessage(null);
+    setDisplayNameError(null);
+
+    if (!trimmed) {
+      setDisplayNameError('Display name cannot be empty.');
+      return;
+    }
+    if (trimmed.length > displayNameMaxLength) {
+      setDisplayNameError(`Display name must be ${displayNameMaxLength} characters or fewer.`);
+      return;
+    }
+
+    setDisplayNameSaving(true);
+    try {
+      const res = await fetch('/api/settings/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: trimmed }),
+      });
+      const json = await res.json() as { displayName?: string; error?: string; message?: string };
+      if (!res.ok) {
+        setDisplayNameError(json.error ?? 'Failed to save display name.');
+        return;
+      }
+      const saved = (json.displayName ?? trimmed).trim();
+      setDisplayName(saved);
+      setDisplayNameResolved(saved);
+      setDisplayNameMessage(json.message ?? 'Display name saved.');
+      await fetchMembers();
+    } catch {
+      setDisplayNameError('Failed to save display name.');
+    } finally {
+      setDisplayNameSaving(false);
+    }
+  };
 
   const handleMailboxDisconnect = async () => {
     setMailboxMessage(null);
@@ -228,7 +302,50 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Section 2: Account Members */}
+      {/* Section 2: Profile */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-zinc-900">Profile</h2>
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3">
+          {displayNameLoading ? (
+            <p className="text-sm text-zinc-500">Loading display name...</p>
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-zinc-700" htmlFor="display-name-input">
+                Display name
+              </label>
+              <input
+                id="display-name-input"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                maxLength={displayNameMaxLength}
+                className="w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                placeholder={displayNameResolved ?? session?.user?.name ?? session?.user?.email ?? 'Your name'}
+                disabled={displayNameSaving}
+              />
+              <p className="text-xs text-zinc-500">
+                Shown across shared contributor views and receipt attribution labels.
+              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-zinc-400">
+                  {displayName.trim().length}/{displayNameMaxLength}
+                </p>
+                <button
+                  onClick={handleSaveDisplayName}
+                  disabled={displayNameSaving}
+                  className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-40"
+                >
+                  {displayNameSaving ? 'Saving...' : 'Save Display Name'}
+                </button>
+              </div>
+              {displayNameError && <p className="text-sm text-red-600">{displayNameError}</p>}
+              {displayNameMessage && <p className="text-sm text-green-700">{displayNameMessage}</p>}
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Section 3: Account Members */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-zinc-900">Account Members</h2>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
@@ -269,7 +386,7 @@ export default function SettingsPage() {
               ) : (
                 <p className="text-sm text-zinc-600">
                   You are a member on this shared account.
-                  {owner ? ` Account owner: ${owner.userId}.` : ''}
+                  {owner ? ` Account owner: ${owner.displayName}.` : ''}
                 </p>
               )}
 
@@ -279,7 +396,8 @@ export default function SettingsPage() {
                 {members.map((member) => (
                   <div key={`${member.userId}-${member.role}`} className="flex items-center justify-between p-3">
                     <div>
-                      <p className="text-sm font-medium text-zinc-900">{member.userId}</p>
+                      <p className="text-sm font-medium text-zinc-900">{member.displayName}</p>
+                      <p className="text-xs text-zinc-500">{member.userId}</p>
                       <p className="text-xs text-zinc-500 capitalize">{member.role}</p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -307,7 +425,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Section 3: Custom Rules */}
+      {/* Section 4: Custom Rules */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-zinc-900">Custom Rules</h2>
         <div className="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-100">
@@ -334,7 +452,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Section 4: Export Data */}
+      {/* Section 5: Export Data */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-zinc-900">Export Data</h2>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-center justify-between">
@@ -349,7 +467,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Section 5: Danger Zone */}
+      {/* Section 6: Danger Zone */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-red-600">Danger Zone</h2>
         <div className="rounded-xl border border-red-200 bg-white divide-y divide-red-100">

@@ -24,18 +24,13 @@ type SummaryData = {
 };
 
 type ContributorFilter = 'all' | 'owner' | 'member';
-type AccountMember = { userId: string; role: 'owner' | 'member'; status: 'pending' | 'active' | 'removed' };
-type MembersResponse = { members: AccountMember[] };
-
-const formatUserLabel = (userId: string | null): string => {
-  if (!userId) return 'Member';
-  const local = userId.split('@')[0] ?? userId;
-  return local
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
+type AccountMember = {
+  userId: string;
+  displayName: string;
+  role: 'owner' | 'member';
+  status: 'pending' | 'active' | 'removed';
 };
+type MembersResponse = { members: AccountMember[] };
 
 function ScanButton({ onComplete }: { onComplete: () => void }) {
   const [scanning, setScanning] = useState(false);
@@ -115,8 +110,8 @@ export default function DashboardPage() {
       .then((j: MembersResponse) => {
         const owner = j.members?.find((m) => m.role === 'owner');
         const member = j.members?.find((m) => m.role === 'member' && m.status !== 'removed');
-        setOwnerLabel(formatUserLabel(owner?.userId ?? null));
-        setMemberLabel(formatUserLabel(member?.userId ?? null));
+        setOwnerLabel(owner?.displayName ?? owner?.userId ?? 'Owner');
+        setMemberLabel(member?.displayName ?? member?.userId ?? 'Member');
       })
       .catch(() => {});
     fetch('/api/review-queue')

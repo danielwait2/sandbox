@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import {
+  resolveContributorDisplayName,
+  upsertAuthProviderName,
+} from "@/lib/contributorProfiles";
 import { resolveAccountContextForUser } from "@/lib/account";
 import { writeAuditEvent } from "@/lib/audit";
 
@@ -12,6 +16,8 @@ type MembershipRow = {
   status: "pending" | "active" | "removed";
   created_at: string;
   updated_at: string;
+  display_name: string | null;
+  auth_provider_name: string | null;
 };
 
 const normalizeEmail = (value: string): string => value.trim().toLowerCase();
@@ -21,6 +27,8 @@ export async function GET(): Promise<NextResponse> {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const sessionUserName = session.user?.name ?? null;
+  upsertAuthProviderName(session.user.email, session.user.name);
 
   const context = resolveAccountContextForUser(session.user.email);
   if (!context) {
@@ -29,10 +37,12 @@ export async function GET(): Promise<NextResponse> {
 
   const rows = db
     .prepare(
-      `SELECT user_id, role, status, created_at, updated_at
-       FROM account_memberships
-       WHERE account_id = ?
-       ORDER BY CASE role WHEN 'owner' THEN 0 ELSE 1 END, created_at ASC`
+      `SELECT m.user_id, m.role, m.status, m.created_at, m.updated_at,
+              p.display_name, p.auth_provider_name
+       FROM account_memberships m
+       LEFT JOIN user_profiles p ON p.user_id = m.user_id
+       WHERE m.account_id = ?
+       ORDER BY CASE m.role WHEN 'owner' THEN 0 ELSE 1 END, m.created_at ASC`
     )
     .all(context.accountId) as MembershipRow[];
 
@@ -41,6 +51,12 @@ export async function GET(): Promise<NextResponse> {
     viewerRole: context.viewerRole,
     members: rows.map((row) => ({
       userId: row.user_id,
+        displayName: resolveContributorDisplayName(row.user_id, {
+        displayName: row.display_name,
+        authProviderName: row.auth_provider_name,
+        sessionAuthName:
+          row.user_id === context.viewerUserId ? sessionUserName : null,
+      }),
       role: row.role,
       status: row.status,
       createdAt: row.created_at,

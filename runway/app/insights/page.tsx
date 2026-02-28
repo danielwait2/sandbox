@@ -8,7 +8,6 @@ import Link from 'next/link';
 type FrequentItem = { name: string; count: number; totalSpent: number };
 type ExpensiveItem = { name: string; totalPrice: number; retailer: string; date: string };
 type CategoryTrend = { category: string; currentSpend: number; previousSpend: number; changePercent: number };
-type DuplicatePurchase = { name: string; occurrences: number; dates: string[]; totalSpent: number };
 type AnnualizedCategory = { category: string; weeklyAvg: number; annualProjection: number };
 type BulkBuySuggestion = { name: string; count: number; totalSpent: number; avgPrice: number };
 
@@ -16,23 +15,17 @@ type InsightsData = {
   frequentItems: FrequentItem[];
   expensiveItems: ExpensiveItem[];
   categoryTrends: CategoryTrend[];
-  duplicates: DuplicatePurchase[];
   annualized: AnnualizedCategory[];
   bulkBuySuggestions: BulkBuySuggestion[];
 };
 type ContributorFilter = 'all' | 'owner' | 'member';
-type AccountMember = { userId: string; role: 'owner' | 'member'; status: 'pending' | 'active' | 'removed' };
-type MembersResponse = { members: AccountMember[] };
-
-const formatUserLabel = (userId: string | null): string => {
-  if (!userId) return 'Member';
-  const local = userId.split('@')[0] ?? userId;
-  return local
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
+type AccountMember = {
+  userId: string;
+  displayName: string;
+  role: 'owner' | 'member';
+  status: 'pending' | 'active' | 'removed';
 };
+type MembersResponse = { members: AccountMember[] };
 
 export default function InsightsPage() {
   const { data: session, status } = useSession();
@@ -66,8 +59,8 @@ export default function InsightsPage() {
       .then((j: MembersResponse) => {
         const owner = j.members?.find((m) => m.role === 'owner');
         const member = j.members?.find((m) => m.role === 'member' && m.status !== 'removed');
-        setOwnerLabel(formatUserLabel(owner?.userId ?? null));
-        setMemberLabel(formatUserLabel(member?.userId ?? null));
+        setOwnerLabel(owner?.displayName ?? owner?.userId ?? 'Owner');
+        setMemberLabel(member?.displayName ?? member?.userId ?? 'Member');
       })
       .catch(() => {});
   }, [status]);
@@ -211,25 +204,6 @@ export default function InsightsPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </section>
-          )}
-
-          {/* Duplicate Purchase Alerts */}
-          {data!.duplicates.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold text-zinc-800 mb-4">Possible Duplicate Purchases</h2>
-              <div className="space-y-3">
-                {data!.duplicates.map((d) => (
-                  <div key={d.name} className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-sm font-medium text-amber-900">
-                      {d.name} purchased {d.occurrences} times within a week
-                    </p>
-                    <p className="text-sm text-amber-700 mt-1">
-                      Dates: {d.dates.join(', ')} &middot; Total: ${d.totalSpent.toFixed(2)}
-                    </p>
-                  </div>
-                ))}
               </div>
             </section>
           )}

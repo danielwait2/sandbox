@@ -3,6 +3,7 @@ import {
   buildReceiptContributorClause,
   getContributorUserIds,
 } from "@/lib/account";
+import { getContributorDisplayNameMap } from "@/lib/contributorProfiles";
 import { db } from "@/lib/db";
 
 export type ReceiptSummary = {
@@ -15,6 +16,7 @@ export type ReceiptSummary = {
   order_number: string | null;
   item_count: number;
   contributor_user_id: string;
+  contributor_display_name: string;
   contributor_role: "owner" | "member";
 };
 
@@ -44,8 +46,14 @@ export function getRecentReceipts(
     "contributor_role"
   >[];
 
+  const displayNames = getContributorDisplayNameMap(
+    receipts.map((receipt) => receipt.contributor_user_id)
+  );
+
   return receipts.map((receipt) => ({
     ...receipt,
+    contributor_display_name:
+      displayNames.get(receipt.contributor_user_id) ?? receipt.contributor_user_id,
     contributor_role:
       receipt.contributor_user_id === context.ownerUserId ? ("owner" as const) : ("member" as const),
   }));

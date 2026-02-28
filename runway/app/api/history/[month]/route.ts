@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getReceiptsForMonth } from "@/lib/history";
+import { upsertAuthProviderName } from "@/lib/contributorProfiles";
 import { parseContributorFilter, resolveAccountContextForUser } from "@/lib/account";
 
 export async function GET(
@@ -12,6 +13,7 @@ export async function GET(
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  upsertAuthProviderName(session.user.email, session.user.name);
 
   const contributor = parseContributorFilter(_request.nextUrl.searchParams.get("contributor"));
   if (!contributor) {

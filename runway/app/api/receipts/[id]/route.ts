@@ -8,6 +8,10 @@ import {
   getContributorUserIds,
   resolveAccountContextForUser,
 } from "@/lib/account";
+import {
+  resolveContributorDisplayName,
+  upsertAuthProviderName,
+} from "@/lib/contributorProfiles";
 
 type LineItem = {
   id: number;
@@ -26,6 +30,8 @@ type Receipt = {
   id: string;
   user_id: string;
   contributor_user_id: string | null;
+  display_name: string | null;
+  auth_provider_name: string | null;
   retailer: string;
   transaction_date: string;
   subtotal: number | null;
@@ -45,6 +51,7 @@ export async function GET(
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  upsertAuthProviderName(session.user.email, session.user.name);
   const context = resolveAccountContextForUser(session.user.email);
   if (!context) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -56,9 +63,14 @@ export async function GET(
 
   const receipt = db
     .prepare(
-      `SELECT receipts.*,
-              COALESCE(receipts.contributor_user_id, receipts.user_id) AS contributor_user_id
+      `SELECT receipts.id, receipts.user_id, receipts.retailer, receipts.transaction_date,
+              receipts.subtotal, receipts.tax, receipts.total, receipts.order_number,
+              receipts.raw_email_id, receipts.parsed_at,
+              COALESCE(receipts.contributor_user_id, receipts.user_id) AS contributor_user_id,
+              p.display_name,
+              p.auth_provider_name
        FROM receipts
+       LEFT JOIN user_profiles p ON p.user_id = COALESCE(receipts.contributor_user_id, receipts.user_id)
        WHERE id = ? AND ${scope.whereSql}`
     )
     .get(id, ...scope.params) as Receipt | undefined;
@@ -74,6 +86,17 @@ export async function GET(
   return NextResponse.json({
     ...receipt,
     contributor_user_id: receipt.contributor_user_id ?? receipt.user_id,
+    contributor_display_name: resolveContributorDisplayName(
+      receipt.contributor_user_id ?? receipt.user_id,
+      {
+        displayName: receipt.display_name,
+        authProviderName: receipt.auth_provider_name,
+        sessionAuthName:
+          (receipt.contributor_user_id ?? receipt.user_id) === context.viewerUserId
+            ? session.user.name
+            : null,
+      }
+    ),
     contributor_role:
       (receipt.contributor_user_id ?? receipt.user_id) === context.ownerUserId
         ? "owner"

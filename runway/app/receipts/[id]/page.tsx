@@ -23,6 +23,7 @@ type ReceiptDetail = {
   total: number;
   order_number: string | null;
   contributor_user_id: string;
+  contributor_display_name: string;
   contributor_role: 'owner' | 'member';
   items: LineItem[];
 };
@@ -112,7 +113,7 @@ export default function ReceiptDetailPage() {
           {receipt.tax != null && <> &middot; Tax {formatUSD(receipt.tax)}</>}
           {' '}&middot; Total {formatUSD(receipt.total)}
         </p>
-        <p className="text-xs text-zinc-400 mt-1">Found in: {receipt.contributor_user_id}</p>
+        <p className="text-xs text-zinc-400 mt-1">Found in: {receipt.contributor_display_name}</p>
       </div>
 
       <hr className="border-zinc-200" />

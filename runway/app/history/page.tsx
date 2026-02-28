@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -26,31 +28,40 @@ type ReceiptWithItems = {
   total: number;
   order_number: string | null;
   contributor_user_id: string;
+  contributor_display_name: string;
   contributorRole: 'owner' | 'member';
   items: LineItem[];
 };
 type ContributorFilter = 'all' | 'owner' | 'member';
-type AccountMember = { userId: string; role: 'owner' | 'member'; status: 'pending' | 'active' | 'removed' };
+type AccountMember = {
+  userId: string;
+  displayName: string;
+  role: 'owner' | 'member';
+  status: 'pending' | 'active' | 'removed';
+};
 type MembersResponse = { members: AccountMember[] };
+type ChartMode = 'total' | 'category' | 'current-vs-projected';
+type ProjectionMethod = 'budget' | 'historical_average' | 'mixed';
+type TotalGranularity = 'month' | 'day';
+
+type CurrentVsProjectedData = {
+  contributor: ContributorFilter;
+  selectedCategory: string | null;
+  categories: string[];
+  projectionMethod: ProjectionMethod;
+  points: { date: string; current: number; projected: number }[];
+};
+type CurrentVsProjectedChartPoint = CurrentVsProjectedData['points'][number] & { trend: number };
 
 type HistoryData = {
   contributor?: ContributorFilter;
   monthlySpending: MonthlySpending[];
+  dailySpending: { date: string; total: number }[];
   categorySpending: MonthlyCategorySpending[];
   summary: HistorySummary;
 };
 
 type RangePreset = 'month' | '3months' | 'quarter' | 'year' | 'all';
-
-const formatUserLabel = (userId: string | null): string => {
-  if (!userId) return 'Member';
-  const local = userId.split('@')[0] ?? userId;
-  return local
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(' ');
-};
 
 const CATEGORY_COLORS: Record<string, string> = {
   Groceries: '#3b82f6',
@@ -103,7 +114,12 @@ export default function HistoryPage() {
   const [drilldownReceipts, setDrilldownReceipts] = useState<ReceiptWithItems[] | null>(null);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
   const [expandedReceipt, setExpandedReceipt] = useState<string | null>(null);
-  const [chartMode, setChartMode] = useState<'total' | 'category'>('total');
+  const [chartMode, setChartMode] = useState<ChartMode>('total');
+  const [totalGranularity, setTotalGranularity] = useState<TotalGranularity>('month');
+  const [projectionCategory, setProjectionCategory] = useState('all');
+  const [projectionData, setProjectionData] = useState<CurrentVsProjectedData | null>(null);
+  const [projectionLoading, setProjectionLoading] = useState(false);
+  const [projectionError, setProjectionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/signin');
@@ -116,25 +132,107 @@ export default function HistoryPage() {
       .then((j: MembersResponse) => {
         const owner = j.members?.find((m) => m.role === 'owner');
         const member = j.members?.find((m) => m.role === 'member' && m.status !== 'removed');
-        setOwnerLabel(formatUserLabel(owner?.userId ?? null));
-        setMemberLabel(formatUserLabel(member?.userId ?? null));
+        setOwnerLabel(owner?.displayName ?? owner?.userId ?? 'Owner');
+        setMemberLabel(member?.displayName ?? member?.userId ?? 'Member');
       })
       .catch(() => {});
   }, [status]);
 
+  const getActiveRange = useCallback(() => {
+    if (useCustom) return { start: customStart, end: customEnd };
+    return getDateRange(preset);
+  }, [preset, useCustom, customStart, customEnd]);
+
   const fetchData = useCallback(async () => {
     if (status !== 'authenticated') return;
     setLoading(true);
-    const range = useCustom ? { start: customStart, end: customEnd } : getDateRange(preset);
+    const range = getActiveRange();
     const res = await fetch(`/api/history?start=${range.start}&end=${range.end}&contributor=${contributor}`);
     const d = await res.json() as HistoryData;
     setData(d);
     setLoading(false);
     setSelectedMonth(null);
     setDrilldownReceipts(null);
-  }, [status, preset, useCustom, customStart, customEnd, contributor]);
+  }, [status, getActiveRange, contributor]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || chartMode !== 'current-vs-projected') return;
+
+    const range = getActiveRange();
+    if (!range.start || !range.end) return;
+    if (range.start > range.end) return;
+
+    const controller = new AbortController();
+    const loadingTimer = setTimeout(() => {
+      setProjectionLoading(true);
+      setProjectionError(null);
+    }, 0);
+
+    fetch(`/api/history/current-vs-projected?start=${range.start}&end=${range.end}&contributor=${contributor}&category=${projectionCategory}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error('Unable to load projection chart.');
+        }
+        const d = await res.json() as CurrentVsProjectedData;
+        setProjectionData(d);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setProjectionData(null);
+        setProjectionError(err instanceof Error ? err.message : 'Unable to load projection chart.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setProjectionLoading(false);
+      });
+
+    return () => {
+      clearTimeout(loadingTimer);
+      controller.abort();
+    };
+  }, [status, chartMode, contributor, projectionCategory, getActiveRange]);
+
+  const projectionChartData = useMemo<CurrentVsProjectedChartPoint[]>(() => {
+    const points = projectionData?.points ?? [];
+    if (points.length === 0) return [];
+
+    if (points.length < 2) {
+      return points.map((point) => ({ ...point, trend: point.current }));
+    }
+
+    const n = points.length;
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumX2 = 0;
+
+    for (let i = 0; i < n; i += 1) {
+      const x = i;
+      const y = points[i].current;
+      sumX += x;
+      sumY += y;
+      sumXY += x * y;
+      sumX2 += x * x;
+    }
+
+    const denominator = n * sumX2 - sumX * sumX;
+    const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / n;
+
+    return points.map((point, index) => ({
+      ...point,
+      trend: Number((intercept + slope * index).toFixed(2)),
+    }));
+  }, [projectionData]);
+
+  const totalChartData = totalGranularity === 'day' ? (data?.dailySpending ?? []) : (data?.monthlySpending ?? []);
+  const totalXAxisKey = totalGranularity === 'day' ? 'date' : 'month';
 
   const handleBarClick = async (monthValue: string) => {
     if (selectedMonth === monthValue) {
@@ -174,6 +272,14 @@ export default function HistoryPage() {
     { key: 'year', label: 'This Year' },
     { key: 'all', label: 'All Time' },
   ];
+
+  const projectionCategories = projectionData?.categories ?? allCategories;
+  const isCustomRangeInvalid = useCustom && customStart !== '' && customEnd !== '' && customStart > customEnd;
+  const projectionMethodLabel: Record<ProjectionMethod, string> = {
+    budget: 'Budgeted from monthly budgets',
+    historical_average: 'Budgeted from recent 3-month average pace',
+    mixed: 'Budgeted from budgets with historical fallback',
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -270,14 +376,14 @@ export default function HistoryPage() {
           </div>
 
           {/* Chart Mode Toggle */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             <button
               onClick={() => setChartMode('total')}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                 chartMode === 'total' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              Total Spending
+              Total Spent
             </button>
             <button
               onClick={() => setChartMode('category')}
@@ -287,15 +393,73 @@ export default function HistoryPage() {
             >
               By Category
             </button>
+            <button
+              onClick={() => setChartMode('current-vs-projected')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                chartMode === 'current-vs-projected' ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+              }`}
+            >
+              Current vs Budgeted
+            </button>
+            {chartMode === 'total' && (
+              <select
+                value={totalGranularity}
+                onChange={(e) => setTotalGranularity(e.target.value as TotalGranularity)}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700"
+              >
+                <option value="month">By Month</option>
+                <option value="day">By Day</option>
+              </select>
+            )}
+            {chartMode === 'current-vs-projected' && (
+              <>
+                <select
+                  value={projectionCategory}
+                  onChange={(e) => setProjectionCategory(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700"
+                >
+                  <option value="all">All Categories</option>
+                  {projectionCategories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
           {/* Chart */}
           <div className="rounded-lg border border-zinc-200 bg-white p-4 mb-8">
-            <ResponsiveContainer width="100%" height={350}>
-              {chartMode === 'total' ? (
-                <BarChart data={data!.monthlySpending} onClick={(e) => { if (e?.activeLabel) handleBarClick(String(e.activeLabel)); }}>
+            {chartMode === 'current-vs-projected' && projectionLoading ? (
+              <div className="h-[350px] flex items-center justify-center text-sm text-zinc-500">
+                Loading current vs budgeted chart...
+              </div>
+            ) : chartMode === 'current-vs-projected' && projectionError ? (
+              <div className="h-[350px] flex items-center justify-center text-sm text-red-600">
+                {projectionError}
+              </div>
+            ) : chartMode === 'current-vs-projected' && (!projectionData || projectionData.points.length === 0) ? (
+              <div className="h-[350px] flex items-center justify-center text-sm text-zinc-500">
+                No budgeted data available for this range.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={350}>
+                {chartMode === 'total' ? (
+                <BarChart
+                  data={totalChartData}
+                  onClick={(e) => {
+                    if (!e?.activeLabel) return;
+                    const label = String(e.activeLabel);
+                    const month = totalGranularity === 'day' ? label.slice(0, 7) : label;
+                    void handleBarClick(month);
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <XAxis
+                    dataKey={totalXAxisKey}
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value: string) => totalGranularity === 'day' ? value.slice(5) : value}
+                    minTickGap={24}
+                  />
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => `$${v}`} />
                   <Tooltip formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Total']} />
                   <Bar
@@ -305,7 +469,7 @@ export default function HistoryPage() {
                     cursor="pointer"
                   />
                 </BarChart>
-              ) : (
+                ) : chartMode === 'category' ? (
                 <BarChart data={stackedData} onClick={(e) => { if (e?.activeLabel) handleBarClick(String(e.activeLabel)); }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
@@ -322,9 +486,45 @@ export default function HistoryPage() {
                     />
                   ))}
                 </BarChart>
-              )}
-            </ResponsiveContainer>
-            <p className="text-xs text-zinc-400 mt-2 text-center">Click a bar to see receipts for that month</p>
+              ) : (
+                <LineChart data={projectionChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value: string) => value.slice(5)}
+                    minTickGap={24}
+                    label={{ value: 'Date', position: 'insideBottom', offset: -4, fontSize: 12 }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(v: number) => `$${v}`}
+                    label={{ value: 'Cumulative Spend ($)', angle: -90, position: 'insideLeft', fontSize: 12 }}
+                  />
+                  <Tooltip formatter={(value, name) => [`$${Number(value).toFixed(2)}`, String(name)]} />
+                  <Legend />
+                  <Line type="monotone" dataKey="current" name="Current" stroke="#2563eb" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="projected" name="Budgeted" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 4" dot={false} />
+                  <Line type="linear" dataKey="trend" name="Trendline" stroke="#16a34a" strokeWidth={2} strokeDasharray="3 3" dot={false} />
+                </LineChart>
+                )}
+              </ResponsiveContainer>
+            )}
+            {chartMode === 'current-vs-projected' ? (
+              <p className="text-xs text-zinc-400 mt-2 text-center">
+                {isCustomRangeInvalid
+                  ? 'Start month must be before end month.'
+                  : projectionData
+                    ? projectionMethodLabel[projectionData.projectionMethod]
+                    : 'Projection details unavailable'}
+              </p>
+            ) : (
+              <p className="text-xs text-zinc-400 mt-2 text-center">
+                {chartMode === 'total' && totalGranularity === 'day'
+                  ? 'Click a day bar to see receipts for that month'
+                  : 'Click a bar to see receipts for that month'}
+              </p>
+            )}
           </div>
 
           {/* Drill-down */}
@@ -354,6 +554,7 @@ export default function HistoryPage() {
                         <div>
                           <span className="font-medium text-zinc-900">{r.retailer}</span>
                           <span className="text-sm text-zinc-500 ml-3">{r.transaction_date}</span>
+                          <span className="text-xs text-zinc-400 ml-2">Found in: {r.contributor_display_name}</span>
                           <span className="text-xs text-zinc-400 ml-2 uppercase">{r.contributorRole}</span>
                           {r.order_number && (
                             <span className="text-xs text-zinc-400 ml-2">#{r.order_number}</span>

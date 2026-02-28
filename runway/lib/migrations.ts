@@ -107,6 +107,14 @@ CREATE TABLE IF NOT EXISTS mailbox_connections (
   updated_at    TEXT NOT NULL,
   UNIQUE(user_id, provider)
 );
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id            TEXT PRIMARY KEY,
+  display_name       TEXT,
+  auth_provider_name TEXT,
+  created_at         TEXT NOT NULL,
+  updated_at         TEXT NOT NULL
+);
 `;
 
 const defaultCategories = [
@@ -168,6 +176,10 @@ export const runMigrations = (db: Database.Database): void => {
   addColumnIfMissing(db, "receipts", "dedupe_hash", "TEXT");
   addColumnIfMissing(db, "scan_state", "provider", "TEXT NOT NULL DEFAULT 'google'");
   addColumnIfMissing(db, "scan_state", "mailbox_connection_id", "INTEGER");
+  addColumnIfMissing(db, "user_profiles", "display_name", "TEXT");
+  addColumnIfMissing(db, "user_profiles", "auth_provider_name", "TEXT");
+  addColumnIfMissing(db, "user_profiles", "created_at", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, "user_profiles", "updated_at", "TEXT NOT NULL DEFAULT ''");
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_receipts_user_date ON receipts(user_id, transaction_date);

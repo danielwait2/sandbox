@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { resolveAccountContextForUser } from "@/lib/account";
 import { authOptions } from "@/lib/auth";
+import { upsertAuthProviderName } from "@/lib/contributorProfiles";
 import { getRecentReceipts } from "@/lib/receipts";
 
 export async function GET() {
@@ -11,6 +12,7 @@ export async function GET() {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  upsertAuthProviderName(session.user.email, session.user.name);
 
   const context = resolveAccountContextForUser(session.user.email);
   if (!context) {
