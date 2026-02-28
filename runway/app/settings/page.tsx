@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 type Rule = {
   id: number;
@@ -12,9 +13,11 @@ type Rule = {
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [rules, setRules] = useState<Rule[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     fetch('/api/rules')
@@ -30,6 +33,13 @@ export default function SettingsPage() {
   const handleDeleteRule = async (id: number) => {
     await fetch(`/api/rules/${id}`, { method: 'DELETE' });
     setRules((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleResetScanState = async () => {
+    setResetting(true);
+    await fetch('/api/scan-state', { method: 'DELETE' });
+    setResetting(false);
+    router.push('/dashboard');
   };
 
   const handleDeleteAccount = async () => {
@@ -101,7 +111,25 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Section 4: Danger Zone */}
+      {/* Section 4: Email Scan */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-zinc-900">Email Scan</h2>
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-zinc-900">Re-scan all emails</p>
+            <p className="text-sm text-zinc-500">Resets the scan window so the next scan re-checks the last 90 days. Useful after adding a new retailer.</p>
+          </div>
+          <button
+            className="bg-zinc-100 text-zinc-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200 disabled:opacity-40"
+            onClick={handleResetScanState}
+            disabled={resetting}
+          >
+            {resetting ? 'Resetting…' : 'Reset Scan Window'}
+          </button>
+        </div>
+      </section>
+
+      {/* Section 5: Danger Zone */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-red-600">Danger Zone</h2>
         <div className="rounded-xl border border-red-200 bg-white p-5 flex items-center justify-between">
