@@ -30,17 +30,29 @@ function formatUSD(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 }
 
-function resolveMonth(period: string): string {
+type PeriodQuery =
+  | { type: 'month'; month: string; label: string }
+  | { type: 'since'; since: string; label: string };
+
+function resolvePeriod(period: string): PeriodQuery {
   const now = new Date();
   if (period === 'last_month') {
     const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return d.toISOString().slice(0, 7);
+    const month = d.toISOString().slice(0, 7);
+    return { type: 'month', month, label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) };
   }
-  if (period === 'this_month') {
-    return now.toISOString().slice(0, 7);
+  if (period === '3_months') {
+    const d = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const since = d.toISOString().slice(0, 7);
+    return { type: 'since', since, label: 'Last 3 Months' };
   }
-  // assume it's already a YYYY-MM string
-  return period;
+  // this_month or a literal YYYY-MM
+  const month = period === 'this_month' ? now.toISOString().slice(0, 7) : period;
+  return {
+    type: 'month',
+    month,
+    label: new Date(month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+  };
 }
 
 function SkeletonRow() {
@@ -58,14 +70,19 @@ export default function CategoryDrillDownPage() {
   const name = decodeURIComponent(params.name as string);
 
   const period = searchParams.get('period') ?? 'this_month';
-  const month = resolveMonth(period);
+  const periodQuery = resolvePeriod(period);
+  const monthLabel = periodQuery.label;
 
   const [items, setItems] = useState<LineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [trendMap, setTrendMap] = useState<Map<string, PriceTrend | null>>(new Map());
 
   useEffect(() => {
-    fetch(`/api/items?category=${encodeURIComponent(name)}&month=${month}`)
+    const param =
+      periodQuery.type === 'month'
+        ? `month=${periodQuery.month}`
+        : `since=${periodQuery.since}`;
+    fetch(`/api/items?category=${encodeURIComponent(name)}&${param}`)
       .then((r) => r.json())
       .then((j: { items: LineItem[] }) => {
         const fetched = j.items ?? [];
@@ -102,14 +119,9 @@ export default function CategoryDrillDownPage() {
         setTrendMap(map);
       })
       .finally(() => setLoading(false));
-  }, [name, month]);
+  }, [name, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalSpend = items.reduce((sum, item) => sum + item.total_price, 0);
-
-  const monthLabel = new Date(month + '-01').toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
 
   return (
     <main className="mx-auto max-w-3xl p-6 space-y-6">
