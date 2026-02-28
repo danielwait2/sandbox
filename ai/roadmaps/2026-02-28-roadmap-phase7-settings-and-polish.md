@@ -45,9 +45,9 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 ### Navigation & Polish
 - [x] Persistent nav bar across `/dashboard`, `/review-queue`, `/settings` with active link highlight
 - [x] `app/dashboard/loading.tsx` and `app/review-queue/loading.tsx` skeleton screens
-- [ ] Verify responsive layout at 375px on all pages
-- [ ] Run `next build` — fix all TypeScript and build errors
-- [ ] Confirm no raw email content stored anywhere in the DB
+- [x] Verify responsive layout at 375px on all pages
+- [x] Run `next build` — fix all TypeScript and build errors
+- [x] Confirm no raw email content stored anywhere in the DB
 
 ---
 

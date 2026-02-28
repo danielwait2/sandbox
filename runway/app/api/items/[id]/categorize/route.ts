@@ -7,14 +7,15 @@ import { clearRulesCache } from "@/lib/rulesEngine";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const itemId = parseInt(params.id, 10);
+  const { id } = await params;
+  const itemId = parseInt(id, 10);
   if (isNaN(itemId)) {
     return NextResponse.json({ error: "Invalid item id" }, { status: 400 });
   }
