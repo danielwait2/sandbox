@@ -46,6 +46,43 @@ CREATE TABLE IF NOT EXISTS rules (
 );
 `;
 
+const defaultCategories = [
+  "Groceries",
+  "Household",
+  "Baby & Kids",
+  "Health & Wellness",
+  "Personal Care",
+  "Electronics",
+  "Clothing & Apparel",
+  "Pet Supplies",
+  "Other",
+] as const;
+
+const seedDefaultCategories = (db: Database.Database): void => {
+  const existingRows = db.prepare("SELECT COUNT(*) as count FROM budgets").get() as {
+    count: number;
+  };
+
+  if (existingRows.count > 0) {
+    return;
+  }
+
+  const insertBudget = db.prepare(
+    "INSERT INTO budgets (category, subcategory, month, amount) VALUES (?, NULL, ?, ?)"
+  );
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
+  const insertMany = db.transaction((categories: readonly string[]) => {
+    for (const category of categories) {
+      insertBudget.run(category, currentMonth, 0);
+    }
+  });
+
+  insertMany(defaultCategories);
+};
+
 export const runMigrations = (db: Database.Database): void => {
   db.exec(schemaSql);
+  seedDefaultCategories(db);
 };
