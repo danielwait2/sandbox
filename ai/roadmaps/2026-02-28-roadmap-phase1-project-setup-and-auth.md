@@ -32,7 +32,7 @@ Bootstrap the Next.js app with Tailwind, wire up Google OAuth via NextAuth.js, a
 
 ### Database
 - [x] `lib/db.ts` — singleton `better-sqlite3` connection
-- [ ] `lib/migrations.ts` — `CREATE TABLE IF NOT EXISTS` for all 4 tables on startup
+- [x] `lib/migrations.ts` — `CREATE TABLE IF NOT EXISTS` for all 4 tables on startup
 - [ ] Seed 9 default categories into `budgets` if empty
 
 ### Auth
