@@ -7,8 +7,13 @@ interface BudgetRowProps {
   spent: number;
   budget: number;
   defaultAmount: number | null;
+  isFirst: boolean;
+  isLast: boolean;
   onBudgetChange: (category: string, amount: number) => void;
   onDefaultToggle: (category: string, amount: number | null) => void;
+  onDelete: (category: string) => void;
+  onMoveUp: (category: string) => void;
+  onMoveDown: (category: string) => void;
 }
 
 function formatUSD(n: number) {
@@ -20,8 +25,13 @@ export default function BudgetRow({
   spent,
   budget,
   defaultAmount,
+  isFirst,
+  isLast,
   onBudgetChange,
   onDefaultToggle,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
 }: BudgetRowProps) {
   const [inputValue, setInputValue] = useState(budget > 0 ? String(budget) : '');
   const isDefault = defaultAmount !== null;
@@ -48,17 +58,46 @@ export default function BudgetRow({
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-zinc-900">{category}</span>
-        <label className="flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isDefault}
-            onChange={(e) => handleDefaultToggle(e.target.checked)}
-            className="accent-zinc-900"
-          />
-          Set as default
-        </label>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <div className="flex flex-col">
+            <button
+              onClick={() => onMoveUp(category)}
+              disabled={isFirst}
+              className="text-zinc-300 hover:text-zinc-600 disabled:opacity-20 leading-none text-xs"
+              aria-label="Move up"
+            >
+              ▲
+            </button>
+            <button
+              onClick={() => onMoveDown(category)}
+              disabled={isLast}
+              className="text-zinc-300 hover:text-zinc-600 disabled:opacity-20 leading-none text-xs"
+              aria-label="Move down"
+            >
+              ▼
+            </button>
+          </div>
+          <span className="font-medium text-zinc-900">{category}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => handleDefaultToggle(e.target.checked)}
+              className="accent-zinc-900"
+            />
+            Set as default
+          </label>
+          <button
+            onClick={() => onDelete(category)}
+            className="text-xs text-red-400 hover:text-red-600"
+            aria-label="Delete category"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <div className="w-full bg-zinc-100 rounded-full h-2">
