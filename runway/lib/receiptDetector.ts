@@ -1,4 +1,6 @@
-export type SupportedRetailer = "Walmart" | "Costco" | "Sams Club";
+import { isConfiguredDevEmailSender } from "@/lib/devEmails";
+
+export type SupportedRetailer = "Walmart" | "Costco";
 
 export type ReceiptDetectionResult = {
   isReceipt: boolean;
@@ -16,16 +18,8 @@ export const isReceiptEmail = (from: string): ReceiptDetectionResult => {
     return { isReceipt: true, retailer: "Costco" };
   }
 
-  if (normalizedFrom.includes("samsclub.com")) {
-    return { isReceipt: true, retailer: "Sams Club" };
-  }
-
   // DEV ONLY: treat emails from your own address as Walmart receipts for testing
-  if (
-    process.env.NODE_ENV !== "production" &&
-    process.env.DEV_TEST_EMAIL &&
-    normalizedFrom.includes(process.env.DEV_TEST_EMAIL.toLowerCase())
-  ) {
+  if (process.env.NODE_ENV !== "production" && isConfiguredDevEmailSender(normalizedFrom)) {
     return { isReceipt: true, retailer: "Walmart" };
   }
 

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS receipts (
   total REAL NOT NULL,
   order_number TEXT,
   raw_email_id TEXT,
+  dedupe_hash TEXT,
   parsed_at TEXT
 );
 
@@ -122,9 +123,17 @@ export const runMigrations = (db: Database.Database): void => {
   addColumnIfMissing(db, "budgets", "user_id", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "rules", "user_id", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "budget_defaults", "deleted", "INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing(db, "receipts", "account_id", "TEXT");
+  addColumnIfMissing(db, "receipts", "contributor_user_id", "TEXT");
+  addColumnIfMissing(db, "receipts", "dedupe_hash", "TEXT");
+  addColumnIfMissing(db, "scan_state", "provider", "TEXT NOT NULL DEFAULT 'google'");
+  addColumnIfMissing(db, "scan_state", "mailbox_connection_id", "INTEGER");
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_receipts_user_date ON receipts(user_id, transaction_date);
+    CREATE INDEX IF NOT EXISTS idx_receipts_account_date ON receipts(account_id, transaction_date);
+    CREATE INDEX IF NOT EXISTS idx_receipts_contributor_date ON receipts(contributor_user_id, transaction_date);
+    CREATE INDEX IF NOT EXISTS idx_receipts_account_dedupe_hash ON receipts(account_id, dedupe_hash);
     CREATE INDEX IF NOT EXISTS idx_line_items_receipt_id ON line_items(receipt_id);
     CREATE INDEX IF NOT EXISTS idx_price_history_user_item ON price_history(user_id, item_name_normalized);
   `);

@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession, signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 type Rule = {
   id: number;
@@ -11,23 +10,111 @@ type Rule = {
   subcategory: string | null;
 };
 
+type AccountMember = {
+  userId: string;
+  role: 'owner' | 'member';
+  status: 'pending' | 'active' | 'removed';
+  createdAt: string;
+  updatedAt: string;
+};
+
+type MembersResponse = {
+  accountId: string;
+  viewerRole: 'owner' | 'member';
+  members: AccountMember[];
+};
+
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const router = useRouter();
   const [rules, setRules] = useState<Rule[]>([]);
+  const [members, setMembers] = useState<AccountMember[]>([]);
+  const [viewerRole, setViewerRole] = useState<'owner' | 'member'>('member');
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [resetting, setResetting] = useState(false);
+  const [mailboxConnected, setMailboxConnected] = useState(false);
+  const [mailboxLoading, setMailboxLoading] = useState(true);
+  const [mailboxMessage, setMailboxMessage] = useState<string | null>(null);
+
+  const fetchMailboxStatus = async () => {
+    setMailboxLoading(true);
+    try {
+      const res = await fetch('/api/mailbox/connect');
+      const json = await res.json() as { connected?: boolean };
+      setMailboxConnected(Boolean(json.connected));
+    } catch {
+      setMailboxConnected(false);
+    } finally {
+      setMailboxLoading(false);
+    }
+  };
+
+  const fetchMembers = async () => {
+    setMembersLoading(true);
+    setMembersError(null);
+    try {
+      const res = await fetch('/api/account/members');
+      const json = await res.json() as MembersResponse & { error?: string };
+      if (!res.ok) {
+        setMembersError(json.error ?? 'Failed to load account members.');
+        setMembers([]);
+        return;
+      }
+      setViewerRole(json.viewerRole);
+      setMembers(json.members ?? []);
+    } catch {
+      setMembersError('Failed to load account members.');
+      setMembers([]);
+    } finally {
+      setMembersLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/rules')
       .then((r) => r.json())
       .then((j: { rules: Rule[] }) => setRules(j.rules ?? []));
+    void fetchMembers();
+    void fetchMailboxStatus();
   }, []);
 
-  const handleDisconnect = async () => {
-    await fetch('/api/auth/disconnect', { method: 'DELETE' });
-    await signOut({ callbackUrl: '/signin' });
+  const handleMailboxDisconnect = async () => {
+    setMailboxMessage(null);
+    const res = await fetch('/api/mailbox/disconnect', { method: 'DELETE' });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({})) as { error?: string };
+      setMailboxMessage(json.error ?? 'Unable to disconnect mailbox.');
+    }
+    await fetchMailboxStatus();
+  };
+
+  const handleMailboxConnect = async () => {
+    setMailboxMessage(null);
+    const res = await fetch('/api/mailbox/connect', { method: 'POST' });
+    const json = await res.json().catch(() => ({})) as { error?: string; code?: string };
+
+    if (!res.ok && json.code === 'reauth_required') {
+      await signIn(
+        'google',
+        { callbackUrl: '/settings' },
+        {
+          scope: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      );
+      return;
+    }
+
+    if (!res.ok) {
+      setMailboxMessage(json.error ?? 'Unable to connect mailbox.');
+    }
+    await fetchMailboxStatus();
   };
 
   const handleDeleteRule = async (id: number) => {
@@ -35,17 +122,63 @@ export default function SettingsPage() {
     setRules((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleResetScanState = async () => {
-    setResetting(true);
-    await fetch('/api/scan-state', { method: 'DELETE' });
-    setResetting(false);
-    router.push('/dashboard');
-  };
-
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'DELETE') return;
     await fetch('/api/account', { method: 'DELETE' });
     await signOut({ callbackUrl: '/signin' });
+  };
+
+  const handleAddMember = async () => {
+    setInviteLoading(true);
+    setInviteMessage(null);
+    try {
+      const res = await fetch('/api/account/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+      const json = await res.json() as { error?: string; invitedEmail?: string };
+      if (!res.ok) {
+        setInviteMessage(json.error ?? 'Unable to add member.');
+        return;
+      }
+      setInviteMessage(`Invite created for ${json.invitedEmail}. They become active after login.`);
+      setInviteEmail('');
+      await fetchMembers();
+    } catch {
+      setInviteMessage('Unable to add member.');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    setRemovingUserId(userId);
+    setInviteMessage(null);
+    try {
+      const res = await fetch(`/api/account/members/${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) {
+        setInviteMessage(json.error ?? 'Unable to remove member.');
+        return;
+      }
+      await fetchMembers();
+    } catch {
+      setInviteMessage('Unable to remove member.');
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  const activeMemberCount = members.filter((m) => m.role === 'member' && (m.status === 'active' || m.status === 'pending')).length;
+  const owner = members.find((m) => m.role === 'owner');
+
+  const statusClasses: Record<AccountMember['status'], string> = {
+    active: 'bg-green-100 text-green-700',
+    pending: 'bg-amber-100 text-amber-700',
+    removed: 'bg-zinc-100 text-zinc-600',
   };
 
   return (
@@ -58,18 +191,123 @@ export default function SettingsPage() {
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-center justify-between">
           <div>
             <p className="text-zinc-900 font-medium">{session?.user?.email}</p>
-            <p className="text-sm text-green-600">Connected</p>
+            {mailboxLoading ? (
+              <p className="text-sm text-zinc-500">Checking status...</p>
+            ) : (
+              <p className={`text-sm ${mailboxConnected ? 'text-green-600' : 'text-amber-600'}`}>
+                {mailboxConnected ? 'Connected' : 'Disconnected'}
+              </p>
+            )}
+            {mailboxMessage && (
+              <p className="text-sm text-red-600">{mailboxMessage}</p>
+            )}
           </div>
-          <button
-            className="bg-zinc-100 text-zinc-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200"
-            onClick={handleDisconnect}
-          >
-            Disconnect Gmail
-          </button>
+          <div className="flex items-center gap-2">
+            {mailboxConnected ? (
+              <button
+                className="bg-zinc-100 text-zinc-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200"
+                onClick={handleMailboxDisconnect}
+              >
+                Disconnect Gmail
+              </button>
+            ) : (
+              <button
+                className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700"
+                onClick={handleMailboxConnect}
+              >
+                Connect Gmail
+              </button>
+            )}
+            <button
+              className="bg-zinc-100 text-zinc-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200"
+              onClick={() => signOut({ callbackUrl: '/signin' })}
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* Section 2: Custom Rules */}
+      {/* Section 2: Account Members */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-zinc-900">Account Members</h2>
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+          {membersLoading ? (
+            <p className="text-sm text-zinc-500">Loading members...</p>
+          ) : membersError ? (
+            <p className="text-sm text-red-600">{membersError}</p>
+          ) : (
+            <>
+              {viewerRole === 'owner' ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-zinc-600">
+                    v1 supports one additional member per account.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="member@email.com"
+                      className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
+                      disabled={inviteLoading || activeMemberCount >= 1}
+                    />
+                    <button
+                      onClick={handleAddMember}
+                      disabled={inviteLoading || !inviteEmail || activeMemberCount >= 1}
+                      className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-40"
+                    >
+                      {inviteLoading ? 'Adding...' : 'Add Member'}
+                    </button>
+                  </div>
+                  {activeMemberCount >= 1 && (
+                    <p className="text-xs text-amber-700">
+                      Member slot is full for v1. Remove the current member first.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-600">
+                  You are a member on this shared account.
+                  {owner ? ` Account owner: ${owner.userId}.` : ''}
+                </p>
+              )}
+
+              {inviteMessage && <p className="text-sm text-zinc-600">{inviteMessage}</p>}
+
+              <div className="rounded-lg border border-zinc-200 divide-y divide-zinc-100">
+                {members.map((member) => (
+                  <div key={`${member.userId}-${member.role}`} className="flex items-center justify-between p-3">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-900">{member.userId}</p>
+                      <p className="text-xs text-zinc-500 capitalize">{member.role}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs px-2 py-1 rounded-full capitalize ${statusClasses[member.status]}`}>
+                        {member.status}
+                      </span>
+                      {viewerRole === 'owner' && member.role === 'member' && member.status !== 'removed' && (
+                        <button
+                          onClick={() => handleRemoveMember(member.userId)}
+                          disabled={removingUserId === member.userId}
+                          className="text-sm text-red-600 hover:text-red-700 disabled:opacity-40"
+                        >
+                          {removingUserId === member.userId ? 'Removing...' : 'Remove'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-500">
+                Removing a member blocks access immediately. Historical receipts remain in account analytics.
+              </p>
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Section 3: Custom Rules */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-zinc-900">Custom Rules</h2>
         <div className="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-100">
@@ -96,7 +334,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Section 3: Export Data */}
+      {/* Section 4: Export Data */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-zinc-900">Export Data</h2>
         <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-center justify-between">
@@ -108,24 +346,6 @@ export default function SettingsPage() {
           >
             Export CSV
           </a>
-        </div>
-      </section>
-
-      {/* Section 4: Email Scan */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-zinc-900">Email Scan</h2>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-zinc-900">Re-scan all emails</p>
-            <p className="text-sm text-zinc-500">Resets the scan window so the next scan re-checks the last 90 days. Useful after adding a new retailer.</p>
-          </div>
-          <button
-            className="bg-zinc-100 text-zinc-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200 disabled:opacity-40"
-            onClick={handleResetScanState}
-            disabled={resetting}
-          >
-            {resetting ? 'Resetting…' : 'Reset Scan Window'}
-          </button>
         </div>
       </section>
 

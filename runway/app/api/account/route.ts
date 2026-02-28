@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { resolveAccountContextForUser } from "@/lib/account";
+import { writeAuditEvent } from "@/lib/audit";
 
 export async function DELETE(): Promise<NextResponse> {
   const session = await getServerSession(authOptions);
@@ -30,6 +31,12 @@ export async function DELETE(): Promise<NextResponse> {
     .all(context.accountId) as { user_id: string }[];
 
   const contributorIds = contributorRows.map((row) => row.user_id);
+  writeAuditEvent({
+    accountId: context.accountId,
+    actorUserId: context.viewerUserId,
+    eventType: "account_deleted",
+    metadata: JSON.stringify({ contributors: contributorIds.length }),
+  });
   if (contributorIds.length > 0) {
     const placeholders = contributorIds.map(() => "?").join(", ");
     db.prepare(
