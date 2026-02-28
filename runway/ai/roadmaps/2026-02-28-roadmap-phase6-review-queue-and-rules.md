@@ -1,11 +1,11 @@
 # Phase 6: Review Queue & Rules
 
-**Status:** Not Started
+**Status:** In Progress
 **Last Updated:** 2026-02-28
 
 ## Tasks
 
-- [ ] Task 1: GET /api/review-queue
+- [x] Task 1: GET /api/review-queue
 - [ ] Task 2: PATCH /api/items/[id]/skip
 - [ ] Task 3: ReviewCard component
 - [ ] Task 4: Review queue page
