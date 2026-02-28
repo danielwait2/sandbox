@@ -16,7 +16,9 @@
 | 6 | Review Queue & Rules | Days 12–13 | Complete | Surface low-confidence items for user confirmation; persist confirmed mappings as permanent rules. |
 | 7 | Settings & Polish | Days 14–15 | Complete | Gmail disconnect, custom rules management, CSV export, and delete-account. |
 
-**Total estimated sprint:** 15 days
+| 9 | Receipt List & Detail | Days 19–20 | Not Started | `/receipts` page listing all ingested receipts with a drill-down to every line item on a single trip. Closes the trust gap — users can verify parsing is correct. |
+
+**Total estimated sprint:** 15 days (MVP complete; phases 8+ are post-MVP improvements)
 
 ---
 
