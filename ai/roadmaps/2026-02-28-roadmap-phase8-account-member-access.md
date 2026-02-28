@@ -123,8 +123,8 @@ Before moving to `ai/roadmaps/complete`:
 - [x] Success criteria met
 - [x] Deliverables created
 - [x] Tests passing
-- [ ] Documentation updated
-- [ ] Changelog updated
+- [x] Documentation updated
+- [x] Changelog updated
 
 ---
 

@@ -1,7 +1,7 @@
 # Phase 8 - Account Member Access for Shared Receipt Scanning
 
 **Timeline:** Days 16-20  
-**Status:** Not Started  
+**Status:** Complete  
 **Roadmap:** [2026-02-28-roadmap-phase8-account-member-access.md](./2026-02-28-roadmap-phase8-account-member-access.md) - Track progress
 
 ---
@@ -229,3 +229,15 @@ runway/
 - Account-scoped dashboard, insights, and history endpoints with contributor filter
 - Account-level dedupe and audit logging
 - Migration/integration tests for shared account behavior
+
+---
+
+## Completion Notes
+
+- Implemented owner/member membership APIs (`GET/POST/DELETE`) and Settings management UX.
+- Added account context resolver with pending-to-active activation flow.
+- Added per-user mailbox connection storage and connect/disconnect APIs.
+- Migrated dashboard/insights/history plus items/review/export/detail routes to account scope.
+- Added contributor filters and contributor attribution in history detail/export.
+- Added account-level dedupe (raw email id + heuristic hash) and audit events.
+- Added integration coverage for parity, filters, member removal, mailbox isolation, and migration backfill.
