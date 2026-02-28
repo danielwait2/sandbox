@@ -121,6 +121,7 @@ export const runMigrations = (db: Database.Database): void => {
 
   addColumnIfMissing(db, "budgets", "user_id", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "rules", "user_id", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, "budget_defaults", "deleted", "INTEGER NOT NULL DEFAULT 0");
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_receipts_user_date ON receipts(user_id, transaction_date);

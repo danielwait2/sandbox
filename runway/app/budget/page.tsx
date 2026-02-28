@@ -44,8 +44,19 @@ export default function BudgetPage() {
     const spendMap = new Map(summaryJson.categories.map((c) => [c.name, { spent: c.spend, budget: c.budget ?? 0 }]));
     const defaultsMap = new Map(defaultsJson.defaults.map((d) => [d.category, d.amount]));
 
+    // budget_defaults now tracks deletions (deleted=1 rows are excluded server-side).
+    // A default category is shown only if it appears in the returned defaults (not deleted).
+    // If the user has never touched defaults yet, show all DEFAULT_CATEGORIES.
+    const savedCategories = new Set(defaultsJson.defaults.map((d) => d.category));
+    const userHasCustomizedDefaults = defaultsJson.defaults.some((d) =>
+      DEFAULT_CATEGORIES.includes(d.category)
+    );
+    const visibleDefaults = userHasCustomizedDefaults
+      ? DEFAULT_CATEGORIES.filter((c) => savedCategories.has(c))
+      : DEFAULT_CATEGORIES;
+
     const allCategories = [
-      ...DEFAULT_CATEGORIES,
+      ...visibleDefaults,
       ...defaultsJson.defaults.map((d) => d.category).filter((c) => !DEFAULT_CATEGORIES.includes(c)),
     ];
     summaryJson.categories.forEach((c) => {
