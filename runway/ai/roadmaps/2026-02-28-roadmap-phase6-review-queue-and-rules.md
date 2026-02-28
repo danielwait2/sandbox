@@ -9,7 +9,7 @@
 - [x] Task 2: PATCH /api/items/[id]/skip
 - [x] Task 3: ReviewCard component
 - [x] Task 4: Review queue page
-- [ ] Task 5: Dashboard badge for review queue
+- [x] Task 5: Dashboard badge for review queue
 
 ## Success Criteria
 
