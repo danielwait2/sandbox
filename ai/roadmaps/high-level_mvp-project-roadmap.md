@@ -8,13 +8,13 @@
 
 | # | Phase | Timeline | Status | Summary |
 |---|---|---|---|---|
-| 1 | Project Setup & Auth | Days 1–2 | Not Started | Bootstrap Next.js app, configure SQLite schema, wire up Google OAuth via NextAuth. |
-| 2 | Gmail Ingestion & Receipt Detection | Days 3–4 | Not Started | Use Gmail API to fetch emails, detect Walmart/Costco receipts by sender domain, and deduplicate. |
-| 3 | Receipt Parsing | Days 5–6 | Not Started | Send raw email HTML to Gemini, parse structured line-item JSON, and persist to SQLite. |
-| 4 | Categorization Engine | Days 7–8 | Not Started | Apply rules-based matching first, fall back to Gemini for unknowns, score confidence, and route low-confidence items to the review queue. |
-| 5 | Dashboard | Days 9–11 | Not Started | Build the category spend overview, time toggle, summary stats, and category drill-down UI. |
-| 6 | Review Queue & Rules | Days 12–13 | Not Started | Surface low-confidence items for user confirmation; persist confirmed mappings as permanent rules. |
-| 7 | Settings & Polish | Days 14–15 | Not Started | Gmail disconnect, custom rules management, CSV export, and delete-account. |
+| 1 | Project Setup & Auth | Days 1–2 | Complete | Bootstrap Next.js app, configure SQLite schema, wire up Google OAuth via NextAuth. |
+| 2 | Gmail Ingestion & Receipt Detection | Days 3–4 | Complete | Use Gmail API to fetch emails, detect Walmart/Costco receipts by sender domain, and deduplicate. |
+| 3 | Receipt Parsing | Days 5–6 | Complete | Send raw email HTML to Gemini, parse structured line-item JSON, and persist to SQLite. |
+| 4 | Categorization Engine | Days 7–8 | Complete | Apply rules-based matching first, fall back to Gemini for unknowns, score confidence, and route low-confidence items to the review queue. |
+| 5 | Dashboard | Days 9–11 | Complete | Build the category spend overview, time toggle, summary stats, and category drill-down UI. |
+| 6 | Review Queue & Rules | Days 12–13 | Complete | Surface low-confidence items for user confirmation; persist confirmed mappings as permanent rules. |
+| 7 | Settings & Polish | Days 14–15 | Complete | Gmail disconnect, custom rules management, CSV export, and delete-account. |
 
 **Total estimated sprint:** 15 days
 
