@@ -38,7 +38,7 @@ Bootstrap the Next.js app with Tailwind, wire up Google OAuth via NextAuth.js, a
 ### Auth
 - [x] `app/api/auth/[...nextauth]/route.ts` — GoogleProvider with `gmail.readonly` scope + `access_type=offline`
 - [x] Store `accessToken` and `refreshToken` in JWT callback
-- [ ] `middleware.ts` — protect `/dashboard` and `/api/*` (except `/api/auth/*`)
+- [x] `middleware.ts` — protect `/dashboard` and `/api/*` (except `/api/auth/*`)
 
 ### Pages
 - [ ] `app/signin/page.tsx` — centered sign-in card, "Sign in with Google" button
