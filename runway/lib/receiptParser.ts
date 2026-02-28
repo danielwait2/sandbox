@@ -46,6 +46,7 @@ Rules:
 - Omit items that are clearly not products (e.g., subtotal lines, tax lines, loyalty rewards)
 - If a field is missing from the email, use null
 - Abbreviated item codes like "BSIFBREAST" should be decoded to "Boneless Skinless Chicken Breast", etc.
+- For "date": use the year explicitly stated in the email. If the year is not present in the email, use "MISSING" as the year placeholder (e.g. "MISSING-02-14"). Do NOT guess or infer the year.
 
 Email:
 `;
@@ -56,6 +57,13 @@ const stripFences = (text: string): string => {
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
+};
+
+const applyCurrentYearIfMissing = (date: string): string => {
+  if (date.startsWith("MISSING-")) {
+    return date.replace("MISSING", new Date().getFullYear().toString());
+  }
+  return date;
 };
 
 const isValidParsed = (parsed: unknown): parsed is ParsedReceipt => {
@@ -82,6 +90,7 @@ export const parseReceipt = async (
       console.error("[receiptParser] Invalid structure:", cleaned.slice(0, 200));
       return null;
     }
+    parsed.transaction.date = applyCurrentYearIfMissing(parsed.transaction.date);
     return parsed;
   } catch (err) {
     console.error("[receiptParser] Parse failed:", err);
