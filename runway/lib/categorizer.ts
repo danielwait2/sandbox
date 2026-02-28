@@ -1,3 +1,4 @@
+import { AccountContext } from "@/lib/account";
 import { db } from "@/lib/db";
 import { model } from "@/lib/gemini";
 import { applyRules } from "@/lib/rulesEngine";
@@ -70,17 +71,19 @@ export const categorizeWithGemini = async (
 };
 
 export const categorizeItems = async (
-  userId: string
+  context: AccountContext
 ): Promise<{ categorized: number; rulesHit: number; llmUsed: number; reviewQueue: number }> => {
+  const userId = context.viewerUserId;
   const items = db
     .prepare(
       `SELECT li.id, li.name
        FROM line_items li
        JOIN receipts r ON r.id = li.receipt_id
-       WHERE r.user_id = ?
+       WHERE r.account_id = ?
+         AND (r.contributor_user_id = ? OR r.user_id = ?)
          AND (li.category IS NULL OR li.category = '')`
     )
-    .all(userId) as LineItemRow[];
+    .all(context.accountId, userId, userId) as LineItemRow[];
 
   const updateStmt = db.prepare(
     `UPDATE line_items SET category = ?, subcategory = ?, confidence = ? WHERE id = ?`

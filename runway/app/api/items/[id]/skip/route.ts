@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import {
+  buildReceiptContributorClause,
+  getContributorUserIds,
+  resolveAccountContextForUser,
+} from "@/lib/account";
 
 export async function PATCH(
   _req: NextRequest,
@@ -11,18 +16,23 @@ export async function PATCH(
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const context = resolveAccountContextForUser(session.user.email);
+  if (!context) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-  const userId = session.user.email;
   const { id } = await params;
+  const contributorUserIds = getContributorUserIds(context, "all");
+  const scope = buildReceiptContributorClause("r", contributorUserIds);
 
   type ItemRow = { id: number };
   const item = db
     .prepare(
       `SELECT li.id FROM line_items li
        JOIN receipts r ON li.receipt_id = r.id
-       WHERE li.id = ? AND r.user_id = ?`
+       WHERE li.id = ? AND ${scope.whereSql}`
     )
-    .get(id, userId) as ItemRow | undefined;
+    .get(id, ...scope.params) as ItemRow | undefined;
 
   if (!item) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

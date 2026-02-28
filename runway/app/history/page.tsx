@@ -30,6 +30,8 @@ type ReceiptWithItems = {
   items: LineItem[];
 };
 type ContributorFilter = 'all' | 'owner' | 'member';
+type AccountMember = { userId: string; role: 'owner' | 'member'; status: 'pending' | 'active' | 'removed' };
+type MembersResponse = { members: AccountMember[] };
 
 type HistoryData = {
   contributor?: ContributorFilter;
@@ -39,6 +41,16 @@ type HistoryData = {
 };
 
 type RangePreset = 'month' | '3months' | 'quarter' | 'year' | 'all';
+
+const formatUserLabel = (userId: string | null): string => {
+  if (!userId) return 'Member';
+  const local = userId.split('@')[0] ?? userId;
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ');
+};
 
 const CATEGORY_COLORS: Record<string, string> = {
   Groceries: '#3b82f6',
@@ -82,6 +94,8 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [preset, setPreset] = useState<RangePreset>('year');
   const [contributor, setContributor] = useState<ContributorFilter>('all');
+  const [ownerLabel, setOwnerLabel] = useState('Owner');
+  const [memberLabel, setMemberLabel] = useState('Member');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -94,6 +108,19 @@ export default function HistoryPage() {
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/signin');
   }, [status, router]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    fetch('/api/account/members')
+      .then((r) => r.json())
+      .then((j: MembersResponse) => {
+        const owner = j.members?.find((m) => m.role === 'owner');
+        const member = j.members?.find((m) => m.role === 'member' && m.status !== 'removed');
+        setOwnerLabel(formatUserLabel(owner?.userId ?? null));
+        setMemberLabel(formatUserLabel(member?.userId ?? null));
+      })
+      .catch(() => {});
+  }, [status]);
 
   const fetchData = useCallback(async () => {
     if (status !== 'authenticated') return;
@@ -193,19 +220,19 @@ export default function HistoryPage() {
           )}
         </div>
       </div>
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="border-b border-zinc-200 mb-6">
         {[
           { key: 'all', label: 'All Contributors' },
-          { key: 'owner', label: 'Owner Only' },
-          { key: 'member', label: 'Member Only' },
+          { key: 'owner', label: ownerLabel },
+          { key: 'member', label: memberLabel },
         ].map((opt) => (
           <button
             key={opt.key}
             onClick={() => setContributor(opt.key as ContributorFilter)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
               contributor === opt.key
-                ? 'bg-zinc-900 text-white'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                ? 'border-zinc-900 text-zinc-900'
+                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700'
             }`}
           >
             {opt.label}

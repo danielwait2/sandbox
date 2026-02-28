@@ -189,3 +189,33 @@ test("history drill-down preserves contributor attribution", () => {
   assert.equal(memberReceipt?.contributor_user_id, "member@example.com");
   assert.equal(memberReceipt?.contributorRole, "member");
 });
+
+test("pending member activates on first account resolution", () => {
+  resetDb();
+
+  const now = new Date().toISOString();
+  db.prepare(
+    "INSERT INTO accounts (id, owner_user_id, created_at) VALUES (?, ?, ?)"
+  ).run("acct_pending", "owner@example.com", now);
+  db.prepare(
+    `INSERT INTO account_memberships (account_id, user_id, role, status, created_at, updated_at)
+     VALUES (?, ?, 'owner', 'active', ?, ?)`
+  ).run("acct_pending", "owner@example.com", now, now);
+  db.prepare(
+    `INSERT INTO account_memberships (account_id, user_id, role, status, created_at, updated_at)
+     VALUES (?, ?, 'member', 'pending', ?, ?)`
+  ).run("acct_pending", "invitee@example.com", now, now);
+
+  const context = resolveAccountContextForUser("invitee@example.com");
+  assert.ok(context);
+  assert.equal(context.viewerRole, "member");
+  assert.equal(context.accountId, "acct_pending");
+
+  const membership = db
+    .prepare(
+      `SELECT status FROM account_memberships
+       WHERE account_id = ? AND user_id = ? AND role = 'member'`
+    )
+    .get("acct_pending", "invitee@example.com") as { status: string };
+  assert.equal(membership.status, "active");
+});

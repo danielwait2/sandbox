@@ -4,6 +4,8 @@ const schemaSql = `
 CREATE TABLE IF NOT EXISTS receipts (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
+  account_id TEXT,
+  contributor_user_id TEXT,
   retailer TEXT NOT NULL,
   transaction_date TEXT NOT NULL,
   subtotal REAL,
@@ -47,6 +49,8 @@ CREATE TABLE IF NOT EXISTS rules (
 
 CREATE TABLE IF NOT EXISTS scan_state (
   user_id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL DEFAULT 'google',
+  mailbox_connection_id INTEGER,
   last_scanned_at TEXT NOT NULL
 );
 
@@ -65,6 +69,29 @@ CREATE TABLE IF NOT EXISTS account_memberships (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE (account_id, user_id),
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+
+CREATE TABLE IF NOT EXISTS mailbox_connections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('connected', 'disconnected')) DEFAULT 'connected',
+  connected_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (user_id, provider)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_id TEXT,
+  actor_user_id TEXT,
+  event_type TEXT NOT NULL,
+  target_user_id TEXT,
+  metadata TEXT,
+  created_at TEXT NOT NULL,
   FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 `;
@@ -122,16 +149,25 @@ export const runMigrations = (db: Database.Database): void => {
 
   addColumnIfMissing(db, "budgets", "user_id", "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, "rules", "user_id", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, "receipts", "account_id", "TEXT");
+  addColumnIfMissing(db, "receipts", "contributor_user_id", "TEXT");
+  addColumnIfMissing(db, "scan_state", "provider", "TEXT NOT NULL DEFAULT 'google'");
+  addColumnIfMissing(db, "scan_state", "mailbox_connection_id", "INTEGER");
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_receipts_user_date ON receipts(user_id, transaction_date);
+    CREATE INDEX IF NOT EXISTS idx_receipts_account_date ON receipts(account_id, transaction_date);
+    CREATE INDEX IF NOT EXISTS idx_receipts_contributor_date ON receipts(contributor_user_id, transaction_date);
     CREATE INDEX IF NOT EXISTS idx_line_items_receipt_id ON line_items(receipt_id);
     CREATE INDEX IF NOT EXISTS idx_account_memberships_user_status ON account_memberships(user_id, status);
     CREATE INDEX IF NOT EXISTS idx_account_memberships_account_role ON account_memberships(account_id, role);
+    CREATE INDEX IF NOT EXISTS idx_mailbox_connections_user_provider ON mailbox_connections(user_id, provider);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_account_created ON audit_log(account_id, created_at);
   `);
 
   seedDefaultCategories(db);
   backfillAccounts(db);
+  backfillReceiptAttribution(db);
 };
 
 const makeAccountId = (userId: string): string =>
@@ -181,4 +217,30 @@ const backfillAccounts = (db: Database.Database): void => {
   });
 
   insert(users);
+};
+
+const backfillReceiptAttribution = (db: Database.Database): void => {
+  const rows = db
+    .prepare(
+      `SELECT r.id, r.user_id, m.account_id
+       FROM receipts r
+       LEFT JOIN account_memberships m ON m.user_id = r.user_id AND m.role = 'owner'
+       WHERE r.account_id IS NULL OR r.account_id = '' OR r.contributor_user_id IS NULL OR r.contributor_user_id = ''`
+    )
+    .all() as { id: string; user_id: string; account_id: string | null }[];
+
+  const update = db.prepare(
+    `UPDATE receipts
+     SET account_id = ?, contributor_user_id = ?
+     WHERE id = ?`
+  );
+
+  const trx = db.transaction((items: typeof rows) => {
+    for (const row of items) {
+      if (!row.account_id) continue;
+      update.run(row.account_id, row.user_id, row.id);
+    }
+  });
+
+  trx(rows);
 };

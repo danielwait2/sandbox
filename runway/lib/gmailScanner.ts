@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 
+import { AccountContext } from "@/lib/account";
 import { db } from "@/lib/db";
 import { createGmailClient } from "@/lib/gmail";
 import { isReceiptEmail } from "@/lib/receiptDetector";
@@ -39,7 +40,9 @@ const toIsoDate = (rawDate: string): string => {
 
 const getAfterEpoch = (userId: string): number => {
   const scanState = db
-    .prepare("SELECT last_scanned_at FROM scan_state WHERE user_id = ?")
+    .prepare(
+      "SELECT last_scanned_at FROM scan_state WHERE user_id = ? AND provider = 'google'"
+    )
     .get(userId) as { last_scanned_at: string } | undefined;
 
   if (!scanState?.last_scanned_at) {
@@ -55,19 +58,24 @@ const getAfterEpoch = (userId: string): number => {
   return Math.floor(parsed.getTime() / 1000);
 };
 
-const persistScanState = (userId: string): void => {
+const persistScanState = (userId: string, mailboxConnectionId: number): void => {
   db.prepare(
-    `INSERT INTO scan_state (user_id, last_scanned_at)
-     VALUES (?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET last_scanned_at = excluded.last_scanned_at`
-  ).run(userId, new Date().toISOString());
+    `INSERT INTO scan_state (user_id, provider, mailbox_connection_id, last_scanned_at)
+     VALUES (?, 'google', ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       provider = 'google',
+       mailbox_connection_id = excluded.mailbox_connection_id,
+       last_scanned_at = excluded.last_scanned_at`
+  ).run(userId, mailboxConnectionId, new Date().toISOString());
 };
 
 export const scanGmail = async (
-  userId: string,
+  context: AccountContext,
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
+  mailboxConnectionId: number
 ): Promise<ScanResult> => {
+  const userId = context.viewerUserId;
   const { gmail } = await createGmailClient({ accessToken, refreshToken });
 
   const afterEpoch = getAfterEpoch(userId);
@@ -87,13 +95,17 @@ export const scanGmail = async (
   const messages = listResponse.data.messages ?? [];
 
   const findExistingReceipt = db.prepare(
-    "SELECT id FROM receipts WHERE user_id = ? AND raw_email_id = ? LIMIT 1"
+    `SELECT id FROM receipts
+     WHERE account_id = ? AND raw_email_id = ?
+     LIMIT 1`
   );
 
   const insertReceipt = db.prepare(
     `INSERT INTO receipts (
       id,
       user_id,
+      account_id,
+      contributor_user_id,
       retailer,
       transaction_date,
       subtotal,
@@ -102,7 +114,7 @@ export const scanGmail = async (
       order_number,
       raw_email_id,
       parsed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   let scanned = 0;
@@ -116,7 +128,7 @@ export const scanGmail = async (
 
     scanned += 1;
 
-    const existing = findExistingReceipt.get(userId, message.id) as
+    const existing = findExistingReceipt.get(context.accountId, message.id) as
       | { id: string }
       | undefined;
 
@@ -145,6 +157,8 @@ export const scanGmail = async (
     insertReceipt.run(
       uuidv4(),
       userId,
+      context.accountId,
+      userId,
       detection.retailer,
       toIsoDate(date),
       null,
@@ -158,7 +172,7 @@ export const scanGmail = async (
     newCount += 1;
   }
 
-  persistScanState(userId);
+  persistScanState(userId, mailboxConnectionId);
 
   return {
     scanned,

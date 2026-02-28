@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import {
+  buildReceiptContributorClause,
+  getContributorUserIds,
+  parseContributorFilter,
+  resolveAccountContextForUser,
+} from "@/lib/account";
 
 type ItemRow = {
   id: number;
@@ -26,9 +32,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const context = resolveAccountContextForUser(session.user.email);
+  if (!context) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { searchParams } = req.nextUrl;
   const category = searchParams.get("category");
   const month = searchParams.get("month"); // YYYY-MM
+  const contributor = parseContributorFilter(searchParams.get("contributor"));
+  if (!contributor) {
+    return NextResponse.json({ error: "Invalid contributor filter" }, { status: 400 });
+  }
+  const contributorUserIds = getContributorUserIds(context, contributor);
+  const scope = buildReceiptContributorClause("r", contributorUserIds);
 
   let query = `
     SELECT li.id, li.receipt_id, li.raw_name, li.name, li.quantity,
@@ -37,9 +54,9 @@ export async function GET(req: NextRequest) {
            r.transaction_date, r.retailer
     FROM line_items li
     JOIN receipts r ON r.id = li.receipt_id
-    WHERE r.user_id = ?
+    WHERE ${scope.whereSql}
   `;
-  const params: (string | number)[] = [session.user.email];
+  const params: (string | number)[] = [...scope.params];
 
   if (category) {
     query += " AND li.category = ?";
@@ -54,5 +71,5 @@ export async function GET(req: NextRequest) {
   query += " ORDER BY li.total_price DESC";
 
   const items = db.prepare(query).all(...params) as ItemRow[];
-  return NextResponse.json({ items });
+  return NextResponse.json({ contributor, items });
 }

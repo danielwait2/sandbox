@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import {
+  buildReceiptContributorClause,
+  getContributorUserIds,
+  resolveAccountContextForUser,
+} from "@/lib/account";
 
 type LineItem = {
   id: number;
@@ -39,12 +44,18 @@ export async function GET(
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const context = resolveAccountContextForUser(session.user.email);
+  if (!context) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id } = await params;
+  const contributorUserIds = getContributorUserIds(context, "all");
+  const scope = buildReceiptContributorClause("receipts", contributorUserIds);
 
   const receipt = db
-    .prepare("SELECT * FROM receipts WHERE id = ? AND user_id = ?")
-    .get(id, session.user.email) as Receipt | undefined;
+    .prepare(`SELECT * FROM receipts WHERE id = ? AND ${scope.whereSql}`)
+    .get(id, ...scope.params) as Receipt | undefined;
 
   if (!receipt) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -1,3 +1,4 @@
+import { AccountContext } from "@/lib/account";
 import { db } from "@/lib/db";
 import { createGmailClient } from "@/lib/gmail";
 import { parseReceipt, persistParsedReceipt } from "@/lib/receiptParser";
@@ -39,15 +40,19 @@ const extractBody = (
 };
 
 export const processUnparsedReceipts = async (
-  userId: string,
+  context: AccountContext,
   accessToken: string,
   refreshToken: string
 ): Promise<{ processed: number; failed: number }> => {
+  const userId = context.viewerUserId;
   const rows = db
     .prepare(
-      "SELECT id, raw_email_id FROM receipts WHERE parsed_at IS NULL AND user_id = ?"
+      `SELECT id, raw_email_id FROM receipts
+       WHERE parsed_at IS NULL
+         AND account_id = ?
+         AND (contributor_user_id = ? OR user_id = ?)`
     )
-    .all(userId) as UnparsedReceipt[];
+    .all(context.accountId, userId, userId) as UnparsedReceipt[];
 
   if (rows.length === 0) {
     return { processed: 0, failed: 0 };

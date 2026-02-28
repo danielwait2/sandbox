@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 
 export type AccountRole = "owner" | "member";
+export type MembershipStatus = "pending" | "active" | "removed";
 export type ContributorFilter = "all" | "owner" | "member";
 
 export type AccountContext = {
@@ -20,6 +21,7 @@ type MembershipRow = {
 };
 
 type MemberRow = { user_id: string };
+type PendingMembershipRow = { account_id: string };
 
 export function parseContributorFilter(value: string | null): ContributorFilter | null {
   if (value === null || value === "all") return "all";
@@ -57,6 +59,36 @@ export function resolveAccountContextForUser(userId: string): AccountContext | n
        LIMIT 1`
     )
       .get(userId) as MembershipRow | undefined;
+
+  if (!row) {
+    const pending = db
+      .prepare(
+        `SELECT account_id
+         FROM account_memberships
+         WHERE user_id = ? AND status = 'pending'
+         LIMIT 1`
+      )
+      .get(userId) as PendingMembershipRow | undefined;
+
+    if (pending) {
+      db.prepare(
+        `UPDATE account_memberships
+         SET status = 'active', updated_at = ?
+         WHERE account_id = ? AND user_id = ? AND status = 'pending'`
+      ).run(new Date().toISOString(), pending.account_id, userId);
+
+      row = db
+        .prepare(
+          `SELECT m.account_id as accountId, m.role as viewerRole, a.owner_user_id as ownerUserId
+           FROM account_memberships m
+           JOIN accounts a ON a.id = m.account_id
+           WHERE m.user_id = ? AND m.status = 'active'
+           ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END
+           LIMIT 1`
+        )
+        .get(userId) as MembershipRow | undefined;
+    }
+  }
 
   if (!row) {
     const existingMembership = db

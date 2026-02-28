@@ -21,6 +21,18 @@ type InsightsData = {
   bulkBuySuggestions: BulkBuySuggestion[];
 };
 type ContributorFilter = 'all' | 'owner' | 'member';
+type AccountMember = { userId: string; role: 'owner' | 'member'; status: 'pending' | 'active' | 'removed' };
+type MembersResponse = { members: AccountMember[] };
+
+const formatUserLabel = (userId: string | null): string => {
+  if (!userId) return 'Member';
+  const local = userId.split('@')[0] ?? userId;
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ');
+};
 
 export default function InsightsPage() {
   const { data: session, status } = useSession();
@@ -29,6 +41,8 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [contributor, setContributor] = useState<ContributorFilter>('all');
+  const [ownerLabel, setOwnerLabel] = useState('Owner');
+  const [memberLabel, setMemberLabel] = useState('Member');
   const [tips, setTips] = useState<string[] | null>(null);
   const [tipsLoading, setTipsLoading] = useState(false);
 
@@ -44,6 +58,19 @@ export default function InsightsPage() {
       .then((d) => setData(d as InsightsData))
       .finally(() => setLoading(false));
   }, [status, month, contributor]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    fetch('/api/account/members')
+      .then((r) => r.json())
+      .then((j: MembersResponse) => {
+        const owner = j.members?.find((m) => m.role === 'owner');
+        const member = j.members?.find((m) => m.role === 'member' && m.status !== 'removed');
+        setOwnerLabel(formatUserLabel(owner?.userId ?? null));
+        setMemberLabel(formatUserLabel(member?.userId ?? null));
+      })
+      .catch(() => {});
+  }, [status]);
 
   const fetchTips = async () => {
     setTipsLoading(true);
@@ -80,19 +107,19 @@ export default function InsightsPage() {
           className="rounded border border-zinc-300 px-3 py-1.5 text-sm"
         />
       </div>
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="border-b border-zinc-200 mb-6">
         {[
           { key: 'all', label: 'All Contributors' },
-          { key: 'owner', label: 'Owner Only' },
-          { key: 'member', label: 'Member Only' },
+          { key: 'owner', label: ownerLabel },
+          { key: 'member', label: memberLabel },
         ].map((opt) => (
           <button
             key={opt.key}
             onClick={() => { setContributor(opt.key as ContributorFilter); setTips(null); }}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
               contributor === opt.key
-                ? 'bg-zinc-900 text-white'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                ? 'border-zinc-900 text-zinc-900'
+                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700'
             }`}
           >
             {opt.label}
