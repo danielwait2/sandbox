@@ -30,7 +30,7 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 - [x] `app/api/rules/route.ts` — GET all rules, POST new rule
 - [x] `app/api/rules/[id]/route.ts` — DELETE rule, call `clearRulesCache()`
 - [x] `app/api/items/export/route.ts` — GET: stream CSV of all user line items
-- [ ] `app/api/account/route.ts` — DELETE: wipe all user data from all tables, sign out
+- [x] `app/api/account/route.ts` — DELETE: wipe all user data from all tables, sign out
 
 ### Settings Page
 - [ ] `app/settings/page.tsx` — four sections: Gmail Connection, Custom Rules, Export Data, Danger Zone
