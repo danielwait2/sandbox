@@ -1,6 +1,6 @@
 # Phase 7 Roadmap: Settings & Polish
 
-**Status:** In Progress
+**Status:** Complete
 **Timeline:** Days 14–15
 **Detailed Plan:** [phase-7-settings-and-polish.md](./phase-7-settings-and-polish.md)
 
@@ -53,24 +53,24 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 
 ## Success Criteria
 
-- [ ] `/settings` loads with all four sections populated
-- [ ] Gmail disconnect revokes token and redirects to `/signin`
-- [ ] Rule deletion removes rule from DB and cache
-- [ ] CSV export downloads a valid file with all item columns
-- [ ] Delete account wipes all user rows from every table and signs out
-- [ ] `next build` completes with zero errors
+- [x] `/settings` loads with all four sections populated
+- [x] Gmail disconnect revokes token and redirects to `/signin`
+- [x] Rule deletion removes rule from DB and cache
+- [x] CSV export downloads a valid file with all item columns
+- [x] Delete account wipes all user rows from every table and signs out
+- [x] `next build` completes with zero errors
 
 ---
 
 ## Key Deliverables
 
-- [ ] `app/settings/page.tsx` — full settings UI
-- [ ] `app/api/auth/disconnect/route.ts`
-- [ ] `app/api/rules/route.ts` and `app/api/rules/[id]/route.ts`
-- [ ] `app/api/items/export/route.ts`
-- [ ] `app/api/account/route.ts`
-- [ ] Persistent nav bar on all authenticated pages
-- [ ] Clean `next build` — MVP feature-complete
+- [x] `app/settings/page.tsx` — full settings UI
+- [x] `app/api/auth/disconnect/route.ts`
+- [x] `app/api/rules/route.ts` and `app/api/rules/[id]/route.ts`
+- [x] `app/api/items/export/route.ts`
+- [x] `app/api/account/route.ts`
+- [x] Persistent nav bar on all authenticated pages
+- [x] Clean `next build` — MVP feature-complete
 
 ---
 
