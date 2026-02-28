@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { href: '/review-queue', label: 'Review Queue' },
   { href: '/insights', label: 'Insights' },
   { href: '/history', label: 'History' },
+  { href: '/receipts', label: 'Receipts' },
   { href: '/settings', label: 'Settings' },
 ];
 
