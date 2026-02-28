@@ -1,6 +1,6 @@
 # Phase 5 Roadmap: Dashboard
 
-**Status:** Not Started
+**Status:** Complete
 **Timeline:** Days 9–11
 **Detailed Plan:** [phase-5-dashboard.md](./phase-5-dashboard.md)
 
@@ -26,43 +26,43 @@ Build the main user-facing dashboard: a category spend overview with color-coded
 ## Task Checklist
 
 ### API Routes
-- [ ] `app/api/dashboard/summary/route.ts` — aggregated spend by category + summary stats for `this_month` / `last_month` / `3_months`
-- [ ] `app/api/categories/route.ts` — GET budget targets, PUT upsert budget for a category/month
+- [x] `app/api/dashboard/summary/route.ts` — aggregated spend by category + summary stats for `this_month` / `last_month` / `3_months`
+- [x] `app/api/categories/route.ts` — GET budget targets, PUT upsert budget for a category/month
 
 ### Components
-- [ ] `app/dashboard/components/PeriodToggle.tsx` — three-button time toggle
-- [ ] `app/dashboard/components/SummaryStats.tsx` — total spend, receipt count, top category, most frequent item
-- [ ] `app/dashboard/components/CategoryCard.tsx` — spend, budget target, color-coded progress bar
+- [x] `app/dashboard/components/PeriodToggle.tsx` — three-button time toggle
+- [x] `app/dashboard/components/SummaryStats.tsx` — total spend, receipt count, top category, most frequent item
+- [x] `app/dashboard/components/CategoryCard.tsx` — spend, budget target, color-coded progress bar
 
 ### Pages
-- [ ] `app/dashboard/page.tsx` — full implementation: fetch summary, render toggle + stats + category grid, link to drill-down
-- [ ] `app/dashboard/category/[name]/page.tsx` — item list for a category, sorted by total price desc
-- [ ] Zero-state CTA when `receiptCount === 0`
+- [x] `app/dashboard/page.tsx` — full implementation: fetch summary, render toggle + stats + category grid, link to drill-down
+- [x] `app/dashboard/category/[name]/page.tsx` — item list for a category, sorted by total price desc
+- [x] Zero-state CTA when `receiptCount === 0`
 
 ### Schema Fix
-- [ ] Add `user_id` to `budgets` table migration (required for multi-user correctness)
-- [ ] Add DB indexes: `receipts(user_id, transaction_date)` and `line_items(receipt_id)`
+- [x] Add `user_id` to `budgets` table migration (required for multi-user correctness)
+- [x] Add DB indexes: `receipts(user_id, transaction_date)` and `line_items(receipt_id)`
 
 ---
 
 ## Success Criteria
 
-- [ ] `/dashboard` loads without error for an authenticated user
-- [ ] All 9 categories show with spend (or $0 if no spend)
-- [ ] Time toggle updates data without full page reload
-- [ ] Summary stats are correct for the selected period
-- [ ] Category click navigates to drill-down with correct item list
-- [ ] Budget target inline edit persists via `PUT /api/categories`
+- [x] `/dashboard` loads without error for an authenticated user
+- [x] All 9 categories show with spend (or $0 if no spend)
+- [x] Time toggle updates data without full page reload
+- [x] Summary stats are correct for the selected period
+- [x] Category click navigates to drill-down with correct item list
+- [x] Budget target inline edit persists via `PUT /api/categories`
 
 ---
 
 ## Key Deliverables
 
-- [ ] `app/api/dashboard/summary/route.ts`
-- [ ] `app/api/categories/route.ts`
-- [ ] `app/dashboard/page.tsx` — full dashboard
-- [ ] `app/dashboard/category/[name]/page.tsx` — drill-down
-- [ ] `app/dashboard/components/` — `CategoryCard`, `SummaryStats`, `PeriodToggle`
+- [x] `app/api/dashboard/summary/route.ts`
+- [x] `app/api/categories/route.ts`
+- [x] `app/dashboard/page.tsx` — full dashboard
+- [x] `app/dashboard/category/[name]/page.tsx` — drill-down
+- [x] `app/dashboard/components/` — `CategoryCard`, `SummaryStats`, `PeriodToggle`
 
 ---
 

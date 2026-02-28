@@ -1,6 +1,6 @@
 # Phase 7 Roadmap: Settings & Polish
 
-**Status:** Not Started
+**Status:** In Progress
 **Timeline:** Days 14–15
 **Detailed Plan:** [phase-7-settings-and-polish.md](./phase-7-settings-and-polish.md)
 
@@ -26,8 +26,8 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 ## Task Checklist
 
 ### API Routes
-- [ ] `app/api/auth/disconnect/route.ts` — DELETE: revoke OAuth token, sign out user
-- [ ] `app/api/rules/route.ts` — GET all rules, POST new rule
+- [x] `app/api/auth/disconnect/route.ts` — DELETE: revoke OAuth token, sign out user
+- [x] `app/api/rules/route.ts` — GET all rules, POST new rule
 - [ ] `app/api/rules/[id]/route.ts` — DELETE rule, call `clearRulesCache()`
 - [ ] `app/api/items/export/route.ts` — GET: stream CSV of all user line items
 - [ ] `app/api/account/route.ts` — DELETE: wipe all user data from all tables, sign out
@@ -40,7 +40,7 @@ Build the Settings page covering Gmail disconnect, custom rules management, CSV 
 - [ ] Danger Zone: "Delete Account" with confirmation modal (type "DELETE")
 
 ### Schema Fix
-- [ ] Add `user_id` to `rules` table migration (same fix as `budgets` in Phase 5)
+- [x] Add `user_id` to `rules` table migration (same fix as `budgets` in Phase 5)
 
 ### Navigation & Polish
 - [ ] Persistent nav bar across `/dashboard`, `/review-queue`, `/settings` with active link highlight

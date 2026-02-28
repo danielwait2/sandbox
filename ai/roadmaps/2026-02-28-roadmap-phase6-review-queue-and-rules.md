@@ -1,6 +1,6 @@
 # Phase 6 Roadmap: Review Queue & Rules
 
-**Status:** Not Started
+**Status:** Complete
 **Timeline:** Days 12–13
 **Detailed Plan:** [phase-6-review-queue-and-rules.md](./phase-6-review-queue-and-rules.md)
 
@@ -26,40 +26,40 @@ Surface low-confidence items (confidence < 0.80) for user review via Confirm / R
 ## Task Checklist
 
 ### API Routes
-- [ ] `app/api/review-queue/route.ts` — GET items where `confidence < 0.80` and `user_overridden = 0`
-- [ ] `app/api/items/[id]/skip/route.ts` — PATCH: set `user_overridden = 1`, no rule created
+- [x] `app/api/review-queue/route.ts` — GET items where `confidence < 0.80` and `user_overridden = 0`
+- [x] `app/api/items/[id]/skip/route.ts` — PATCH: set `user_overridden = 1`, no rule created
 
 ### UI
-- [ ] `app/review-queue/components/ReviewCard.tsx` — item card with Confirm / Recategorize / Skip buttons and inline category picker
-- [ ] `app/review-queue/page.tsx` — fetch queue, render cards, remove card on action (optimistic), empty state
+- [x] `app/review-queue/components/ReviewCard.tsx` — item card with Confirm / Recategorize / Skip buttons and inline category picker
+- [x] `app/review-queue/page.tsx` — fetch queue, render cards, remove card on action (optimistic), empty state
 
 ### Dashboard Integration
-- [ ] Add review queue badge count to `app/dashboard/page.tsx` header with link to `/review-queue`
+- [x] Add review queue badge count to `app/dashboard/page.tsx` header with link to `/review-queue`
 
 ### Rules Verification
-- [ ] Confirm `clearRulesCache()` is called on every Confirm/Recategorize action (via existing `PATCH /api/items/[id]/categorize`)
-- [ ] Verify new rules apply on the next scan
+- [x] Confirm `clearRulesCache()` is called on every Confirm/Recategorize action (via existing `PATCH /api/items/[id]/categorize`)
+- [x] Verify new rules apply on the next scan
 
 ---
 
 ## Success Criteria
 
-- [ ] `GET /api/review-queue` returns only items with `confidence < 0.80` and `user_overridden = 0`
-- [ ] Confirm: item exits queue, `user_overridden = 1`, rule created for item name → category
-- [ ] Recategorize: item updated with new category, rule created, exits queue
-- [ ] Skip: item exits queue, `user_overridden = 1`, no rule created
-- [ ] Dashboard badge reflects current queue count
-- [ ] New rule from Confirm/Recategorize applied on next scan
+- [x] `GET /api/review-queue` returns only items with `confidence < 0.80` and `user_overridden = 0`
+- [x] Confirm: item exits queue, `user_overridden = 1`, rule created for item name → category
+- [x] Recategorize: item updated with new category, rule created, exits queue
+- [x] Skip: item exits queue, `user_overridden = 1`, no rule created
+- [x] Dashboard badge reflects current queue count
+- [x] New rule from Confirm/Recategorize applied on next scan
 
 ---
 
 ## Key Deliverables
 
-- [ ] `app/api/review-queue/route.ts`
-- [ ] `app/api/items/[id]/skip/route.ts`
-- [ ] `app/review-queue/page.tsx`
-- [ ] `app/review-queue/components/ReviewCard.tsx`
-- [ ] Dashboard badge count linking to `/review-queue`
+- [x] `app/api/review-queue/route.ts`
+- [x] `app/api/items/[id]/skip/route.ts`
+- [x] `app/review-queue/page.tsx`
+- [x] `app/review-queue/components/ReviewCard.tsx`
+- [x] Dashboard badge count linking to `/review-queue`
 
 ---
 
