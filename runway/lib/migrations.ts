@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS receipts (
   total REAL NOT NULL,
   order_number TEXT,
   raw_email_id TEXT,
-  parsed_at TEXT NOT NULL
+  parsed_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS line_items (
@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS rules (
   category TEXT NOT NULL,
   subcategory TEXT,
   created_from TEXT DEFAULT 'manual'
+);
+
+CREATE TABLE IF NOT EXISTS scan_state (
+  user_id TEXT PRIMARY KEY,
+  last_scanned_at TEXT NOT NULL
 );
 `;
 

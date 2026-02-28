@@ -34,7 +34,7 @@ Use the user's Gmail OAuth token to fetch emails, filter to Walmart and Costco r
 
 ### Scanner
 - [x] `lib/gmailScanner.ts` — Gmail query, message list, deduplication, body fetch, receipt insert
-- [ ] `lib/migrations.ts` — add `scan_state (user_id, last_scanned_at)` table
+- [x] `lib/migrations.ts` — add `scan_state (user_id, last_scanned_at)` table
 - [ ] Store and update `last_scanned_at` per user after each scan
 
 ### API Route
