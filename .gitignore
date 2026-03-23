@@ -1,1 +1,31 @@
-danielNotes/
+# internal planning
+ai/
+aiDocs/
+archived/
+meeting-notes/
+CLAUDE.md
+.claudeignore
+userInputs.txt
+
+# build artifacts
+.next/
+out/
+
+# database
+*.db
+
+# dependencies
+node_modules/
+package-lock.json
+
+# env
+.env
+.env.local
+*.env
+
+# editor
+.vscode/
+.DS_Store
+
+# wrangler
+.wrangler/
